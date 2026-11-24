@@ -1,6 +1,6 @@
 # Deployment (self-hosted PostgreSQL, no Supabase)
 
-Two Node processes: **backend :4000**, **frontend :3000**. Apache/cPanel serves the
+Two Node processes: **backend :4100**, **frontend :3100**. Apache/cPanel serves the
 domain and proxies `/` to port 3000. Images go either to Cloudflare R2 or to a
 public local folder on the server.
 
@@ -57,7 +57,7 @@ Required:
 ```bash
 DATABASE_URL=postgres://pango:STRONG_PASSWORD@127.0.0.1:5432/pango_ecommerce
 JWT_SECRET=<long random string>
-PORT=4000
+PORT=4100
 FRONTEND_URL=https://your-domain.com
 ```
 
@@ -88,7 +88,7 @@ Frontend:
 ```bash
 cd ~/pango-ecommerce/frontend
 cp .env.example .env.local
-# BACKEND_URL=http://127.0.0.1:4000
+# BACKEND_URL=http://127.0.0.1:4100
 ```
 
 ## 3. Build & run
@@ -108,22 +108,22 @@ pm2 startup   # run the command it prints to enable boot start
 Verify:
 
 ```bash
-curl http://127.0.0.1:4000/api/health
-curl -I http://127.0.0.1:3000
+curl http://127.0.0.1:4100/api/health
+curl -I http://127.0.0.1:3100
 pm2 logs
 ```
 
 ## 4. Apache / cPanel reverse proxy
 
 In cPanel → **Domains → your domain → Reverse Proxy**, map the domain to
-`http://127.0.0.1:3000` and save. cPanel writes the vhost for you.
+`http://127.0.0.1:3100` and save. cPanel writes the vhost for you.
 
 If your cPanel has no Reverse Proxy UI, add a `.htaccess` in the domain's
 `public_html` (requires `mod_proxy`):
 
 ```apache
 RewriteEngine On
-RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+RewriteRule ^(.*)$ http://127.0.0.1:3100/$1 [P,L]
 ```
 
 Then point the domain's document root at that `public_html`.
@@ -149,7 +149,7 @@ pm2 restart pango-backend pango-frontend
 
 ## Notes
 
-- Ports 3000 and 4000 were free on the target server.
+- Ports 3100 and 4100 are free on the target server.
 - Keep this app's DB, folder, PM2 names and ports separate from `silai-saathi`
   and `Kishivi-website`.
 - `.env` files are gitignored — they must be created on the server.
