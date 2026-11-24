@@ -1,11 +1,11 @@
-<div align="center">
+﻿<div align="center">
 
-# 🛒 Ecommerce — Electronics Storefront with a Grounded AI Assistant
+# ðŸ›’ Ecommerce â€” Electronics Storefront with a Grounded AI Assistant
 
 **A production-shaped e-commerce platform built with Next.js 16 and Supabase Postgres.**
 Amazon-style catalogue browsing, Razorpay and cash-on-delivery checkout, and a
 retrieval-augmented assistant that answers questions about the catalogue **and
-the customer's own orders** — including *"which product did I buy"*.
+the customer's own orders** â€” including *"which product did I buy"*.
 
 [![Live demo](https://img.shields.io/badge/Live%20Demo-ecommerce--eight--weld.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ecommerce-eight-weld.vercel.app/)
 
@@ -35,13 +35,13 @@ the customer's own orders** — including *"which product did I buy"*.
 | | |
 | :---: | :---: |
 | <img src="docs/screenshots/01-homepage-hero.png" alt="Homepage" width="100%"> | <img src="docs/screenshots/02-category-showcase.png" alt="Category showcase" width="100%"> |
-| **Homepage** — hero carousel advertising real stock, marketplace search, and a category nav that scrolls horizontally | **Shop by category** — a sticky category rail beside four-up product grids, so every row is filled |
+| **Homepage** â€” hero carousel advertising real stock, marketplace search, and a category nav that scrolls horizontally | **Shop by category** â€” a sticky category rail beside four-up product grids, so every row is filled |
 | <img src="docs/screenshots/03-product-detail.png" alt="Product detail" width="100%"> | <img src="docs/screenshots/04-catalogue-filters.png" alt="Catalogue filters" width="100%"> |
-| **Product page** — four-image gallery, price block, and a full specification table | **Catalogue** — filter by category, brand and price, with the grid live behind the open panel |
+| **Product page** â€” four-image gallery, price block, and a full specification table | **Catalogue** â€” filter by category, brand and price, with the grid live behind the open panel |
 | <img src="docs/screenshots/05-user-dashboard.png" alt="User dashboard" width="100%"> | <img src="docs/screenshots/06-checkout.png" alt="Checkout" width="100%"> |
-| **Customer dashboard** — orders, cart, wishlist, addresses and spend at a glance | **Checkout** — online payment or cash on delivery, priced identically on the server |
+| **Customer dashboard** â€” orders, cart, wishlist, addresses and spend at a glance | **Checkout** â€” online payment or cash on delivery, priced identically on the server |
 | <img src="docs/screenshots/07-ai-assistant.png" alt="AI assistant" width="100%"> | <img src="docs/screenshots/08-admin-dashboard.png" alt="Admin dashboard" width="100%"> |
-| **"Ask Ecommerce"** — grounded in the catalogue *and* in your own orders, with citations | **Admin console** — users and roles, product management, and staff-only access |
+| **"Ask Ecommerce"** â€” grounded in the catalogue *and* in your own orders, with citations | **Admin console** â€” users and roles, product management, and staff-only access |
 
 </div>
 
@@ -82,8 +82,8 @@ and free-text, with pagination.
 **Accounts.** Signup and sign-in with bcrypt-hashed passwords and JWT session
 cookies. Wishlist, cart, saved addresses, order history, and a spend summary.
 
-**Checkout.** Two payment paths — Razorpay (UPI, cards, netbanking) and cash on
-delivery — priced identically on the server, with Razorpay signature
+**Checkout.** Two payment paths â€” Razorpay (UPI, cards, netbanking) and cash on
+delivery â€” priced identically on the server, with Razorpay signature
 verification before an order is ever marked paid.
 
 **Admin console.** Staff-only, for users, roles and products. Administrators are
@@ -99,15 +99,15 @@ answers catalogue questions and looks up the signed-in customer's real orders.
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Framework | Next.js 16, App Router, React 19 | Server Components keep most of the page static — the homepage ships almost no client JS |
-| Language | TypeScript 5, `strict` | — |
+| Framework | Next.js 16, App Router, React 19 | Server Components keep most of the page static â€” the homepage ships almost no client JS |
+| Language | TypeScript 5, `strict` | â€” |
 | Styling | Tailwind CSS v4 | CSS-first config, no `tailwind.config.js` |
 | Database | Supabase Postgres + PostgREST | Row-level security, and RPC into functions that are `SECURITY DEFINER` |
 | Vector search | pgvector (`vector(384)`) | Hybrid with Postgres full-text |
 | Embeddings | `@huggingface/transformers`, `Xenova/bge-small-en-v1.5` | Runs **locally**. No embedding API, no cost, no data leaves the machine |
 | Generation | Groq (`qwen/qwen3.8-27b`) | Free tier, ~170 ms for a grounded answer |
 | Payments | Razorpay | UPI, cards, netbanking |
-| Auth | `jsonwebtoken` + `bcryptjs` | Hand-rolled, deliberately — see [Security](#getting-started) |
+| Auth | `jsonwebtoken` + `bcryptjs` | Hand-rolled, deliberately â€” see [Security](#getting-started) |
 | Media | Cloudinary | Direct browser uploads for product images |
 
 **Scale:** 89 files, ~26,700 lines. 20 API routes, 6 database tables, 5 SQL files
@@ -143,7 +143,7 @@ lib/rag/groq.ts            streaming, model fallbacks, SSE
 
 ### Hybrid retrieval
 
-Vector search alone misses exact strings people type — a model number, "7 day",
+Vector search alone misses exact strings people type â€” a model number, "7 day",
 "SM58". Full-text search alone misses paraphrase. Both run and their results are
 fused with **Reciprocal Rank Fusion** inside a single SQL function:
 
@@ -155,7 +155,7 @@ fused with **Reciprocal Rank Fusion** inside a single SQL function:
 ```
 
 RRF is used rather than score-normalisation because a cosine distance and a
-`ts_rank` are not comparable numbers — merging them by score requires inventing a
+`ts_rank` are not comparable numbers â€” merging them by score requires inventing a
 calibration that does not exist. Ranking them and merging by *position* does not.
 
 ### Money moves in Postgres, not JavaScript
@@ -174,7 +174,7 @@ must be all-or-nothing is a Postgres function:
 Both order functions look up product names and prices themselves, so a tampered
 client cannot set its own total. `record_paid_order` additionally compares the
 amount Razorpay says was charged against the amount it computed, and refuses the
-order if they differ by more than ₹1.
+order if they differ by more than â‚¹1.
 
 ### Cash on delivery, honestly recorded
 
@@ -188,9 +188,9 @@ route and its own database column state.
 
 COD deliberately leaves `payment_status` at `pending`. Nobody has handed over
 any money at that point, and marking it paid would let an uncollected order look
-settled in the admin dashboard. The UI matches: the button reads *"Place order —
-pay ₹X on delivery"* rather than *"Pay ₹X"*, and the confirmation says *"Order
-confirmed — nothing has been charged."*
+settled in the admin dashboard. The UI matches: the button reads *"Place order â€”
+pay â‚¹X on delivery"* rather than *"Pay â‚¹X"*, and the confirmation says *"Order
+confirmed â€” nothing has been charged."*
 
 Both paths price the basket through the same function, so shipping and totals
 cannot drift apart between them. The payment method arrives from the client, so
@@ -199,7 +199,7 @@ it is checked three times: whitelisted in the route, re-validated inside the
 
 ### Search that behaves like a marketplace
 
-Typing `mobile` returns phones — even though no product is *called* "mobile".
+Typing `mobile` returns phones â€” even though no product is *called* "mobile".
 
 Three things come back at once: ranked products, a category fallback
 (*"Search all Phone products"*) when the direct hits are thin, and brand chips.
@@ -209,18 +209,18 @@ behaviour.
 
 Brand suggestions are read from the product table at query time rather than from
 a config list, so **a brand added through the admin dashboard becomes searchable
-immediately** — there is no second list to forget to update.
+immediately** â€” there is no second list to forget to update.
 
 ### A catalogue that is generated, not typed
 
 `supabase/seed.sql` is produced by `scripts/build-seed.mjs` from a structured
 catalogue in `scripts/seed-data.mjs`.
 
-Hand-writing 149 products × 4 images × a specification block is where mistakes
+Hand-writing 149 products Ã— 4 images Ã— a specification block is where mistakes
 live: a missing comma, a duplicated slug, a category that quietly drops below
 the homepage's four-card minimum. Generating it means those cannot drift.
 
-Every row is deterministic — no random values, no `Math.random()` — so the same
+Every row is deterministic â€” no random values, no `Math.random()` â€” so the same
 input always produces byte-identical SQL. Prices, specification blocks and
 image URLs are all derived.
 
@@ -229,22 +229,56 @@ so re-running leaves no ghosts from deleted rows behind.
 
 ---
 
-## Getting started
 
-You need Node 20.9+ (24 recommended) and a Supabase project.
+## Repository layout
 
-```bash
-git clone https://github.com/kratos183/Ecommerce-.git
-cd Ecommerce-
-npm install
-cp .env.example .env.local     # then fill it in
+The app is split into two deployable services that run as **two separate
+processes on two ports**:
+
+```
+frontend/    Next.js storefront (port 3000)
+backend/     Standalone Express API (port 4000)
+docs/        screenshots referenced by this README
 ```
 
-**Required environment variables:**
+The frontend owns pages, components and client state. The backend owns every
+`/api/*` route, all database access, authentication, payments and image upload.
+**Mirrored pure modules.** A few dependency-free modules are copied in both packages so each deploys independently (lib/site.ts, lib/home.ts, lib/catalog.ts, lib/navbar-menu.ts, lib/gender.ts, lib/pricing.ts, lib/validation.ts, lib/product-shape.ts, lib/supabase.ts helpers, lib/bundles.ts type). If you edit one copy, edit the other — or the two services will drift.
+
+The frontend never holds database credentials:
+
+- Browser-side `fetch("/api/...")` calls are **proxied** by the frontend's
+  `next.config.ts` (`rewrites`) to `BACKEND_URL`, so cookies stay first-party.
+- Server-side data (the homepage) is fetched from `BACKEND_URL` directly.
+
+## Getting started
+
+You need Node 20.9+ (24 recommended) and a Supabase project. Two terminals,
+one per service:
+
+**Backend** (http://localhost:4000):
 
 ```bash
-# Supabase → Settings → API
-NEXT_PUBLIC_SUPABASE_URL=https://your-ref.supabase.co
+cd backend
+npm install
+cp .env.example .env        # then fill it in
+npm run dev
+```
+
+**Frontend** (http://localhost:3000):
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local  # BACKEND_URL=http://localhost:4000
+npm run dev
+```
+
+**Required backend environment variables** (`backend/.env`):
+
+```bash
+# Supabase â†’ Settings â†’ API
+SUPABASE_URL=https://your-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Sign a random secret. A weak one means anyone can forge a session cookie.
@@ -252,75 +286,79 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 JWT_SECRET=replace-me
 ```
 
-**Optional:** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `GROQ_API_KEY`,
-`GROQ_MODEL`, and the four Cloudinary variables for image uploads. Each missing
-group disables exactly one feature and nothing else.
+**Required frontend environment variables** (`frontend/.env.local`):
 
-**Apply the schema, then load the catalogue.** All four are idempotent — paste
+```bash
+BACKEND_URL=http://localhost:4000
+```
+
+**Optional (backend):** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and the
+Cloudinary variables for image uploads. Each missing group disables exactly
+one feature and nothing else.
+
+**Apply the schema, then load the catalogue.** All are idempotent â€” paste
 them into the Supabase SQL Editor in this order:
 
 | File | Purpose |
 | --- | --- |
-| `supabase/schema.sql` | Tables, transactional functions, RLS policies |
-| `supabase/rag.sql` | pgvector extension, `knowledge_chunks`, hybrid search |
-| `supabase/seed.sql` | The 149-product catalogue |
-| `supabase/admin.sql` | Promote yourself to admin after signing up |
+| `backend/supabase/schema.sql` | Tables, transactional functions, RLS policies |
+| `backend/supabase/seed.sql` | The product catalogue |
+| `backend/supabase/navbar.sql` | Navbar menu table (optional but recommended) |
+| `backend/supabase/admin.sql` | Promote yourself to admin after signing up |
 
-```bash
-npm run dev
-```
-
-Then: sign up at `/signup`, run `supabase/admin.sql` with your email, and build
-the assistant's index:
-
-```bash
-curl -X POST http://localhost:3000/api/knowledge/reindex -H "Cookie: token=YOUR_JWT"
-```
+Then: sign up at `http://localhost:3000/signup`, run `admin.sql` with your
+email to become admin.
 
 Full detail in **[SETUP.md](./SETUP.md)**.
 
 ### Security note
 
-`SUPABASE_SERVICE_ROLE_KEY` **bypasses row-level security entirely**. It is
-git-ignored and must stay that way — a leaked key is not undone by rewriting git
-history, only by rotating it in the Supabase dashboard.
+`SUPABASE_SERVICE_ROLE_KEY` **bypasses row-level security entirely**. It lives
+only in `backend/.env`, which is git-ignored â€” a leaked key is not undone by
+rewriting git history, only by rotating it in the Supabase dashboard.
 
 ---
 
 ## Project layout
 
 ```
-app/
-  page.tsx                    homepage (Server Component, revalidate = 60)
-  product/[slug]/             product detail + 4-image gallery
-  product-page/               catalogue with filters and pagination
-  checkout/                   address → review → pay
-  user-dashboard/             orders, wishlist, cart, "Ask Ecommerce"
-  Admin-Dashboard/            staff console
-  api/                        20 route handlers
-  components/home/            carousel, rails, category showcase, search
-  components/chat/            the assistant panel
-lib/
-  rag/                        the retrieval pipeline (8 modules)
-  search.ts                   marketplace search rules
-  pricing.ts                  basket maths shared by client and server
-  auth.ts                     JWT sessions, bcrypt
-  db.ts, supabase.ts          database access
-scripts/                      seed generation, image sourcing, test suites
-supabase/                     all SQL, applied through the SQL Editor
-docs/screenshots/             the captures above
+frontend/
+  app/                       homepage, catalogue, product, checkout, dashboards
+    api/                     (none â€” all API routes live in the backend)
+    components/              navbar, footer, home sections
+  context/                   auth / cart / wishlist contexts
+  lib/                       browser-safe modules only (types, formatting, constants)
+  proxy.ts                   edge guard for /user-dashboard, /Admin-Dashboard, /checkout
+  next.config.ts             /api/* rewrite â†’ BACKEND_URL (default :4000)
+backend/
+  index.ts                   Express entry: CORS, cookies, route mounting
+  routes/                    one router per Next.js route handler, 1:1
+  lib/                       all server-side logic: db, auth (JWT), pricing, validation, ...
+  scripts/                   seed generation, image sourcing, test suites
+  supabase/                  all SQL, applied through the SQL Editor
+docs/screenshots/            the captures above
 ```
 
 ---
 
 ## Scripts
 
+**Frontend** (`cd frontend`):
+
 | Command | Does |
 | --- | --- |
-| `npm run dev` | Development server |
+| `npm run dev` | Development server on :3000 |
 | `npm run build` | Production build |
-| `npm run test` | All offline suites — no API key, no database |
-| `npm run check` | End-to-end against the real database and Groq |
+| `npm run start` | Production server on :3000 |
+
+**Backend** (`cd backend`):
+
+| Command | Does |
+| --- | --- |
+| `npm run dev` | API with auto-reload on :4000 |
+| `npm run build` / `npm start` | Compile to `dist/` and run the production API |
+| `npm run test` | All offline suites â€” no API key, no database |
+| `npm run check` | End-to-end against the real database |
 | `npm run seed` | Regenerate `supabase/seed.sql` |
 | `npm run images` | Source and verify missing product images |
 | `npm run reset:catalogue` | Delete every product (asks first; `--dry-run` to preview) |
@@ -332,33 +370,49 @@ docs/screenshots/             the captures above
 Three suites run against a real in-process Postgres (PGlite), not mocks:
 
 ```bash
+cd backend
 npm run test
 ```
 
 | Suite | What it proves |
 | --- | --- |
-| `test:schema` | Every SQL file executes. Includes cash-on-delivery behaviour — that a COD order is recorded unpaid, that a tampered payment method is coerced, and that a `CHECK` constraint rejects a bad write |
-| `test:catalogue` | The generated seed is *semantically* sound, not just valid SQL: every category has four-plus products, no dangling bundle references, `mrp ≥ price`, and every image host is allowed in `next.config.ts` |
+| `test:schema` | Every SQL file executes. Includes cash-on-delivery behaviour â€” that a COD order is recorded unpaid, that a tampered payment method is coerced, and that a `CHECK` constraint rejects a bad write |
+| `test:catalogue` | The generated seed is *semantically* sound, not just valid SQL: every category has four-plus products, no dangling bundle references, `mrp â‰¥ price`, and every image host is allowed in the frontend's `next.config.ts` |
 | `test:search` | The search and category-fallback rules behave as documented, including that "samsung" offers the Samsung brand and that a longer word sharing a prefix does not |
-
-The catalogue suite catches a whole class of bug a syntax check cannot. A slug
-function that drifts between two files produces no error at all — it just means
-every product silently loses its images.
 
 ---
 
 ## Deployment
 
-Deploys to Vercel with **no code changes and no build-time environment
-variables**. Import the repository, leave every setting at its default, and add
-the environment variables from `.env.example`.
+Two processes, one server (or two). Reverse-proxy both behind nginx:
 
-Node 24 is pinned in `.nvmrc` and `engines.node`, so build and runtime cannot
-drift onto different majors.
+```nginx
+# frontend on :3000, backend on :4000
+location / {
+  proxy_pass http://localhost:3000;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
 
-Two things are per-machine and will not exist on Vercel: the SQL files (applied
-through the Supabase SQL Editor) and the assistant's index (rebuilt once after
-the first deploy). See **[SETUP.md §6](./SETUP.md)** for the full checklist.
+The `/api/*` requests never reach the backend from the outside: the frontend's
+`rewrites` proxy them to `BACKEND_URL`, so no CORS or cookie-domain changes are
+needed in production â€” just point `BACKEND_URL=http://localhost:4000` (or the
+backend's private address) in `frontend/.env.local` and run both services
+(e.g. under `pm2`):
+
+```bash
+pm2 start "npm run start" --name pango-frontend --cwd frontend
+pm2 start "npm start"     --name pango-backend  --cwd backend
+```
+
+Backend env: copy `backend/.env.example` â†’ `backend/.env`. Frontend env: copy
+`frontend/.env.example` â†’ `frontend/.env.local`. Node 24 is pinned in
+`.nvmrc` and `engines.node`.
+
+Two things are per-machine and will not exist on the server until applied: the
+SQL files (via the Supabase SQL Editor). See **[SETUP.md](./SETUP.md)** for the
+full checklist.
 
 ---
 
@@ -368,10 +422,10 @@ A portfolio project should say what it does not do.
 
 - **The product images are category photographs, not pictures of each specific
   SKU.** They come from Wikimedia Commons and every URL was verified to resolve,
-  but roughly 10 of 149 depict the exact model — the rest are the right brand or
+  but roughly 10 of 149 depict the exact model â€” the rest are the right brand or
   a similar product. Commons is a volunteer encyclopedia with thorough coverage
   of mass-market phones and effectively none of the niche hardware here.
-  Replacing them through Admin Dashboard → Products is the intended workflow.
+  Replacing them through Admin Dashboard â†’ Products is the intended workflow.
 - **The house brand is not in the brand filter.** The navbar's brand grid lists
   only real manufacturers, so the handful of house-branded products (accessories,
   podiums, acoustic tiles) are reachable through their category rather than
@@ -399,7 +453,11 @@ Built by **Chandan Sari Creative**, Dhanbad, Jharkhand, India.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT â€” see [LICENSE](./LICENSE).
 
 Product photographs are hotlinked from Wikimedia Commons under their respective
 free licences; each file's licence is recorded on its Commons page.
+
+
+#   P a n g o - E c o m m e r c e  
+ 

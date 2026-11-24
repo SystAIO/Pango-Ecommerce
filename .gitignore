@@ -66,6 +66,9 @@ coverage/
 .pglite/
 *.pglite/
 
+# Local fallback for admin homepage edits when the Supabase table is absent
+.data/
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  OS / editor noise
 # ─────────────────────────────────────────────────────────────────────────────

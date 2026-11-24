@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+  The site is light-only: every page hardcodes white/gray surfaces. The previous
+  `prefers-color-scheme: dark` override flipped --foreground to near-white, which inputs
+  without an explicit text color inherited — producing invisible white text on the light
+  auth-page fields. Pin the light palette instead of following the OS.
+*/
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /*
+    An extra breakpoint below `sm`.
+
+    Tailwind's `sm` starts at 40rem (640px), which covers tablets and large
+    phones in landscape. Small phones in portrait — 320px to 430px, still a large
+    share of traffic in India — fall entirely below `sm` and are forced to share
+    one layout across a 2x range of widths. `xs` at 400px gives those a step to
+    change at.
+
+    Anything genuinely fluid should use flex/grid with `min-w-0` and relative
+    units rather than more breakpoints; this exists for the handful of layouts
+    where a single extra step is cheaper than making something fluid.
+  */
+  --breakpoint-xs: 25rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+  Clamp horizontal overflow at the root.
+
+  A single element a few pixels too wide — a long unbroken product name, a wide
+  table, an absolutely-positioned panel — gives the whole page a horizontal
+  scrollbar on a phone. Shoppers then pan sideways on a layout that has no
+  sideways to pan to.
+
+  `clip` rather than `hidden`: `hidden` makes the element a scroll container,
+  which silently breaks `position: sticky` on descendants — the navbar, the
+  category rail and the filter bar all depend on it. `clip` clips without
+  establishing a scrollport. The `hidden` line is the fallback for engines
+  without `clip`, and is overridden where it is understood.
+*/
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/*
+  iOS Safari inflates text in its own font size when a page is rotated to
+  landscape, which breaks layouts that were sized against the CSS pixel width.
+*/
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+  Respect the notch and the home indicator. Without this, a fixed bottom bar or
+  the sticky footer sits under the system UI on an iPhone.
+*/
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/*
+  Form controls should pick up the themed foreground rather than a UA default.
+
+  This MUST live in @layer base. Tailwind v4 loads utilities inside @layer components, and
+  unlayered CSS beats every layer regardless of specificity — an unlayered
+  `button { color: inherit }` therefore overrode `.text-white`, turning white button labels
+  on dark backgrounds (Add to Cart, Checkout, Logout) into dark, unreadable text.
+*/
+@layer base {
+  input,
+  textarea,
+  select,
+  button {
+    color: inherit;
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Homepage animations -----------------------------------
+   Five fast animations used across the new homepage. Entrance
+   animations run at 1s; the marquee loops continuously. ----- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes marqueeX {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.animate-fade-up   { animation: fadeUp 1s ease both; }
+.animate-fade-in   { animation: fadeIn 1s ease both; }
+.animate-scale-in  { animation: scaleIn 1s ease both; }
+.animate-slide-left{ animation: slideInLeft 1s ease both; }
+.animate-marquee   { animation: marqueeX 32s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-in, .animate-scale-in, .animate-slide-left {
+    animation-duration: 0.01s;
+  }
+  .animate-marquee { animation: none; }
+}
+
+/* Stagger helpers for card grids */
+.stagger > * { animation: fadeUp 1s ease both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 80ms; }
+.stagger > *:nth-child(3) { animation-delay: 160ms; }
+.stagger > *:nth-child(4) { animation-delay: 240ms; }
+.stagger > *:nth-child(5) { animation-delay: 320ms; }
+.stagger > *:nth-child(6) { animation-delay: 400ms; }
+.stagger > *:nth-child(7) { animation-delay: 480ms; }
+.stagger > *:nth-child(8) { animation-delay: 560ms; }
+.stagger > *:nth-child(9) { animation-delay: 640ms; }
+
+.font-display {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* ─── Printable dispatch labels ───────────────────────────────────────────
+   Only the .print-label block is printed; all admin chrome is hidden. */
+@media print {
+  @page { size: 100mm 150mm; margin: 6mm; }
+  body * { visibility: hidden !important; }
+  .print-label, .print-label * { visibility: visible !important; }
+  .print-label {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "pango-backend",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "check": "node --env-file=.env scripts/check-setup.mjs",
+    "seed": "node scripts/build-seed.mjs",
+    "test:schema": "node scripts/test-schema.mjs",
+    "test:catalogue": "node scripts/test-catalogue.mjs",
+    "test:search": "tsx scripts/test-search.ts",
+    "test": "npm run test:schema && npm run test:catalogue && npm run test:search",
+    "images": "node scripts/resolve-images.mjs",
+    "images:force": "node scripts/resolve-images.mjs --force",
+    "reset:catalogue": "node scripts/reset-catalogue.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "@types/nodemailer": "^8.0.2",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.6.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^20",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}
