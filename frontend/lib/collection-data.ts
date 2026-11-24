@@ -66,40 +66,8 @@ export const COLLECTION_KEYS: CollectionKey[] = ["new-arrivals", "winterwear"];
 export const DEFAULT_COLLECTIONS: Record<CollectionKey, CollectionData> = {
   "new-arrivals": {
     items: [
-      {
-        slug: "new-pango-oxford-shirt-men", name: "Pango Oxford Casual Shirt — Men", brand: "Pango",
-        category: "Shirts", badge: "NEW", price: 1199, mrp: 1999,
-        image: img("1596755094514-f87e34085b2c"), images: [img("1596755094514-f87e34085b2c"), img("1576566588028-4147f3842f27")],
-        description: "A crisp Oxford shirt that moves from weekday meetings to weekend plans without missing a beat.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "100% Cotton", Fit: "Regular Fit", Sleeves: "Full Sleeves", Pattern: "Solid" },
-        insights: [], active: true,
-      },
-      {
-        slug: "new-pango-selvedge-denim-men", name: "Pango Selvedge Denim — Men", brand: "Pango",
-        category: "Jeans", badge: "NEW", price: 1999, mrp: 3499,
-        image: img("1541099649105-f69ad21f3246"), images: [img("1541099649105-f69ad21f3246"), img("1542272604-787c3835535d")],
-        description: "Clean, durable denim with a true-to-size fit and a wash that only gets better with wear.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Selvedge Denim", Fit: "Regular Fit", Rise: "Mid Rise" },
-        insights: [], active: true,
-      },
-      {
-        slug: "new-pango-studio-coord-set-women", name: "Pango Studio Co-ord Set — Women", brand: "Pango",
-        category: "Co-ord Sets", badge: "NEW", price: 1799, mrp: 2999,
-        image: img("1515886657613-9f3515b0c78c"), images: [img("1515886657613-9f3515b0c78c")],
-        description: "A matching set that does the styling for you — wear it together or mix the pieces in.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Cotton Blend", Fit: "Relaxed Fit", Pattern: "Solid" },
-        insights: [], active: true,
-      },
-      {
-        slug: "new-pango-everyday-graphic-tee-men", name: "Pango Everyday Graphic Tee — Men", brand: "Pango",
-        category: "T-Shirts", badge: "NEW", price: 599, mrp: 999,
-        image: img("1521572163474-6864f9cf17ab"), images: [img("1521572163474-6864f9cf17ab")],
-        description: "Soft everyday cotton with a graphic that stays put wash after wash.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Combed Cotton", Fit: "Regular Fit", Sleeves: "Half Sleeves" },
-        insights: [], active: true,
-      },
     ],
-    coupon: { code: "NEW150", label: "Get flat ₹150 OFF", description: "Valid on new arrivals above ₹999 · prepaid only", minOrder: 999, value: 150, kind: "flat", active: true },
+    coupon: { code: "NEW150", label: "Get flat ₹150 OFF", description: "Valid on new arrivals above ₹999 · prepaid only", minOrder: 999, value: 150, kind: "flat", active: false },
     insights: [],
     collection: {
       heading: "New Arrivals",
@@ -113,40 +81,8 @@ export const DEFAULT_COLLECTIONS: Record<CollectionKey, CollectionData> = {
   },
   winterwear: {
     items: [
-      {
-        slug: "winter-pango-alpine-puffer-jacket-women", name: "Pango Alpine Puffer Jacket — Women", brand: "Pango",
-        category: "Jackets", badge: "WINTER", price: 3999, mrp: 7499,
-        image: img("1539109136881-3be0616acf4"), images: [img("1539109136881-3be0616acf4"), img("1558769132-cb1aea458c5e")],
-        description: "Lightweight warmth that packs down small — built for cold mornings and long evenings out.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Imported Poly", Insulation: "350 GSM", Fit: "Regular Fit", Pockets: "2" },
-        insights: [], active: true,
-      },
-      {
-        slug: "winter-pango-essential-oversized-hoodie-men", name: "Pango Essential Oversized Hoodie — Men", brand: "Pango",
-        category: "Hoodies", badge: "WINTER", price: 1499, mrp: 2499,
-        image: img("1523398002811-999ca8dec234"), images: [img("1523398002811-999ca8dec234")],
-        description: "400 gsm brushed fleece with a dropped shoulder — the hoodie you will reach for all winter.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "400 gsm Fleece", Fit: "Oversized", Sleeves: "Full Sleeves" },
-        insights: [], active: true,
-      },
-      {
-        slug: "winter-pango-knit-sweater-women", name: "Pango Knit Sweater — Women", brand: "Pango",
-        category: "Sweaters", badge: "WINTER", price: 1299, mrp: 2299,
-        image: img("1438761681033-6461ffad8d80"), images: [img("1438761681033-6461ffad8d80")],
-        description: "Soft, not itchy, and easy to layer under a puffer when the temperature really drops.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Knit Cotton", Fit: "Regular Fit", Sleeves: "Full Sleeves" },
-        insights: [], active: true,
-      },
-      {
-        slug: "winter-pango-storm-windcheater-jacket-men", name: "Pango Storm Windcheater Jacket — Men", brand: "Pango",
-        category: "Jackets", badge: "WINTER", price: 2499, mrp: 4499,
-        image: img("1558769132-cb1aea458c5e"), images: [img("1558769132-cb1aea458c5e")],
-        description: "A weather-ready shell with sealed seams and a fit that layers over a hoodie.",
-        colors: COLORS, sizes: SIZES, specs: { Fabric: "Imported Poly", Fit: "Regular Fit", Water: "Resistant" },
-        insights: [], active: true,
-      },
     ],
-    coupon: { code: "WINTER250", label: "Get flat ₹250 OFF", description: "Valid on winterwear above ₹1,499 · prepaid only", minOrder: 1499, value: 250, kind: "flat", active: true },
+    coupon: { code: "WINTER250", label: "Get flat ₹250 OFF", description: "Valid on winterwear above ₹1,499 · prepaid only", minOrder: 1499, value: 250, kind: "flat", active: false },
     insights: [],
     collection: {
       heading: "Winterwear Collection",

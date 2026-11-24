@@ -29,13 +29,7 @@ export type Review = {
 
 const FILE = path.join(process.cwd(), ".data", "reviews.json");
 
-const now = new Date().toISOString();
-const SEED: Review[] = [
-  { id: 1, productId: 0, productSlug: "pango-oxford-casual-shirt", productName: "Pango Oxford Casual Shirt — Men", productImage: "", userId: 0, userName: "Rohit", rating: 4, text: "Nice quality Polo T-shirt at a good price.", status: "approved", helpfulUp: 0, helpfulDown: 0, createdAt: now },
-  { id: 2, productId: 0, productSlug: "pango-oxford-casual-shirt", productName: "Pango Oxford Casual Shirt — Men", productImage: "", userId: 0, userName: "Amit", rating: 5, text: "True to size. Value for money", status: "approved", helpfulUp: 2, helpfulDown: 1, createdAt: now },
-  { id: 3, productId: 0, productSlug: "pango-oxford-casual-shirt", productName: "Pango Oxford Casual Shirt — Men", productImage: "", userId: 0, userName: "Sneha", rating: 5, text: "Material is lightweight and does not trap sweat in this summer heat.", status: "approved", helpfulUp: 1, helpfulDown: 0, createdAt: now },
-  { id: 4, productId: 0, productSlug: "pango-oxford-casual-shirt", productName: "Pango Oxford Casual Shirt — Men", productImage: "", userId: 0, userName: "Karan", rating: 5, text: "Best polo in this price range", status: "approved", helpfulUp: 1, helpfulDown: 0, createdAt: now },
-];
+const SEED: Review[] = [];
 
 export function readReviews(): Review[] {
   try {

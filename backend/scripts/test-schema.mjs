@@ -239,25 +239,36 @@ console.log("\n8. supabase/seed.sql");
 try {
   await db.exec(readFileSync("supabase/seed.sql", "utf8"));
   const p = await db.query(`select count(*)::int as n from public.products`);
-  check("seed loads products", p.rows[0].n > 0, `${p.rows[0].n} products`);
+  // The shipped seed is intentionally empty; the products present here are the
+  // fixtures inserted by this test file earlier. Re-running must add nothing.
+  check("seed contains no demo products", p.rows[0].n === 0, `${p.rows[0].n} products`);
 
-  // bundle_slugs drive "Frequently Bought Together"; dangling references are
-  // tolerated by design, so check how many resolve.
+  // No bundle references should dangle, whether the seed is empty or not.
   const bundles = await db.query(`
-    select count(*)::int as resolved
+    select count(*)::int as dangling
       from public.products p
       cross join lateral jsonb_array_elements_text(p.bundle_slugs) s(slug)
-      join public.products t on t.slug = s.slug
-  `).catch(() => ({ rows: [{ resolved: null }] }));
+      left join public.products t on t.slug = s.slug
+     where t.slug is null
+  `).catch(() => ({ rows: [{ dangling: null }] }));
 
-  check("bundle_slugs resolve to real products", (bundles.rows[0].resolved ?? 0) > 0,
-    `${bundles.rows[0].resolved} links`);
+  check("bundle_slugs have no dangling references", (bundles.rows[0].dangling ?? 0) === 0,
+    `${bundles.rows[0].dangling} dangling`);
 
   // Re-running must not duplicate anything.
   const before = (await db.query(`select count(*)::int as n from public.products`)).rows[0].n;
   await db.exec(readFileSync("supabase/seed.sql", "utf8"));
   const after = (await db.query(`select count(*)::int as n from public.products`)).rows[0].n;
   check("seed is idempotent (re-run adds nothing)", before === after, `${before} then ${after}`);
+
+  // The empty seed deletes the earlier fixtures; the sections below still need
+  // real products to place test orders against.
+  await db.exec(`
+    insert into public.products (name, slug, category, price, mrp, stock)
+    values ('COD Fixture One', 'cod-fixture-one', 'Test', 1000, 1500, 10),
+           ('COD Fixture Two', 'cod-fixture-two', 'Test', 2000, 3000, 10),
+           ('COD Fixture Three', 'cod-fixture-three', 'Test', 3000, 4500, 10);
+  `);
 } catch (e) {
   check("seed.sql executes", false, e.message.slice(0, 140));
 }

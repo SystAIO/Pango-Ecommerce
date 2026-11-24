@@ -1,64 +1,398 @@
 /**
- * Supabase client — server only (this package is the backend; never import it
- * into the frontend app).
+ * Local PostgreSQL data access.
  *
- * Replaces the old `mysql2` connection pool. See `lib/supabase.ts` for the full
- * note on why the app now uses the query builder and Postgres functions instead
- * of hand-written SQL.
+ * This replaces the Supabase REST client with a `pg` connection pool, but keeps
+ * the small part of the supabase-js query-builder API the routes actually use
+ * (`.from().select().eq().order()` … and `.rpc()`). No route code had to change.
  *
- * The client is created lazily rather than at module scope so that importing this
- * file never throws. Several pages (notably the homepage) degrade gracefully when
- * Supabase is not configured yet, and that only works if `createClient` is not
- * called until something actually needs it.
- *
- * SECURITY: the service-role key bypasses row-level security. It must only ever
- * be read on the backend, never shipped to the frontend.
+ * SECURITY: all values are parameterised. Table/column names come only from
+ * our own source code, never from request input.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { Pool } from "pg";
 
-let cached: SupabaseClient | null = null;
+/** Array on normal selects, object on single()/rpc() — both shapes type-check. */
+export type DbData = any[] & Record<string, any>;
+export type DbResult = { data: DbData; error: any; count?: number | null };
 
-/** Accepts SUPABASE_URL, falling back to the legacy NEXT_PUBLIC_SUPABASE_URL name. */
-function supabaseUrl(): string | undefined {
-  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+let pool: Pool | null = null;
+
+function connectionString(): string {
+  return String(process.env.DATABASE_URL ?? "").trim();
 }
 
+/** True when a local Postgres connection string is configured. */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(supabaseUrl() && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(connectionString());
 }
+export const isDatabaseConfigured = isSupabaseConfigured;
 
-/**
- * The shared Supabase client.
- *
- * @throws if `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are missing.
- *         Call `isSupabaseConfigured()` first in code paths that must not crash.
- */
-export function db(): SupabaseClient {
-  if (!cached) {
-    const url = supabaseUrl();
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!url || !key) {
+function getPool(): Pool {
+  if (!pool) {
+    const url = connectionString();
+    if (!url) {
       throw new Error(
-        "Supabase is not configured. Set SUPABASE_URL and " +
-          "SUPABASE_SERVICE_ROLE_KEY in .env (see .env.example), then apply " +
-          "supabase/schema.sql and supabase/seed.sql."
+        "DATABASE_URL is not set. Add it to backend/.env, e.g. " +
+          "DATABASE_URL=postgres://pango:password@127.0.0.1:5432/pango_ecommerce"
       );
     }
+    pool = new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 30000 });
+    // A bad connection should not crash the process.
+    pool.on("error", (error) => console.error("Postgres pool error:", error.message));
+  }
+  return pool;
+}
 
-    cached = createClient(url, key, {
-      auth: {
-        // We issue our own JWTs via /api/auth/*, so supabase-js session
-        // persistence would only get in the way.
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: { headers: { "x-application-name": "ecommerce-storefront" } },
-    });
+const KNOWN_PREFIXES = ["PRODUCT_UNAVAILABLE", "PRICED_ON_REQUEST", "AMOUNT_MISMATCH", "NO_VALID_ITEMS"];
+
+function toError(error: unknown): any {
+  const err = error as { code?: string; message?: string; detail?: string; hint?: string };
+  const message = String(err?.message ?? "Database error");
+  // Order functions RAISE a message the routes match with startsWith(...), so
+  // leave those untouched; prefix everything else with the SQLSTATE so the
+  // existing 23505 / 42P01 checks keep working.
+  const prefixed = KNOWN_PREFIXES.some((p) => message.includes(p))
+    ? message
+    : `${err?.code ?? "ERROR"}: ${message}`;
+  return {
+    code: err?.code,
+    message: prefixed,
+    details: err?.detail,
+    hint: err?.hint,
+  };
+}
+
+function quoteIdent(name: string): string {
+  return `"${String(name).replace(/"/g, '""')}"`;
+}
+
+type Filter =
+  | { kind: "eq" | "neq" | "gt"; column: string; value: any }
+  | { kind: "in"; column: string; value: any[] }
+  | { kind: "or"; clauses: { column: string; op: "ilike" | "eq"; value: any }[] };
+
+type Operation = "select" | "insert" | "update" | "delete" | "upsert";
+
+class QueryBuilder implements PromiseLike<DbResult> {
+  private params: any[] = [];
+  private filters: Filter[] = [];
+  private orders: { column: string; ascending: boolean }[] = [];
+  private limitValue?: number;
+  private offsetValue?: number;
+  private mode: "array" | "single" | "maybeSingle" = "array";
+  private countOnly = false;
+  private embedded?: { table: string; columns: string | null };
+
+  constructor(
+    private table: string,
+    private operation: Operation,
+    private columns: string = "*",
+    private payload?: any,
+    private upsertKey?: string,
+    private head = false
+  ) {
+    const embeddedMatch = String(columns).match(/,\s*([a-z_][a-z0-9_]*)\s*\(([^)]*)\)\s*$/i);
+    if (embeddedMatch) {
+      this.embedded = { table: embeddedMatch[1], columns: embeddedMatch[2].trim() || null };
+      this.columns = String(columns).replace(embeddedMatch[0], "").replace(/,\s*$/, "").trim() || "*";
+    }
   }
 
-  return cached;
+  private param(value: any): string {
+    this.params.push(value);
+    return `$${this.params.length}`;
+  }
+
+  eq(column: string, value: any): this {
+    this.filters.push({ kind: "eq", column, value });
+    return this;
+  }
+  neq(column: string, value: any): this {
+    this.filters.push({ kind: "neq", column, value });
+    return this;
+  }
+  gt(column: string, value: any): this {
+    this.filters.push({ kind: "gt", column, value });
+    return this;
+  }
+  in(column: string, value: any[]): this {
+    this.filters.push({ kind: "in", column, value: Array.isArray(value) ? value : [value] });
+    return this;
+  }
+
+  /** Parses PostgREST's `a.ilike.x,b.eq.y` filter syntax. */
+  or(expression: string): this {
+    const clauses: { column: string; op: "ilike" | "eq"; value: any }[] = [];
+    for (const part of String(expression ?? "").split(",")) {
+      const match = part.trim().match(/^([a-z_][a-z0-9_]*)\.(ilike|eq)\.(.+)$/i);
+      if (!match) continue;
+      clauses.push({ column: match[1], op: match[2].toLowerCase() as "ilike" | "eq", value: match[3] });
+    }
+    if (clauses.length) this.filters.push({ kind: "or", clauses });
+    return this;
+  }
+
+  order(column: string, options?: { ascending?: boolean }): this {
+    this.orders.push({ column, ascending: options?.ascending !== false });
+    return this;
+  }
+  limit(value: number): this {
+    this.limitValue = Math.max(0, Number(value) || 0);
+    return this;
+  }
+  range(from: number, to: number): this {
+    this.offsetValue = Math.max(0, Number(from) || 0);
+    this.limitValue = Math.max(0, (Number(to) || 0) - this.offsetValue + 1);
+    return this;
+  }
+  maybeSingle(): this {
+    this.mode = "maybeSingle";
+    return this;
+  }
+  single(): this {
+    this.mode = "single";
+    return this;
+  }
+
+  /** Called after insert/update/upsert to request RETURNING rows. */
+  select(_columns?: string): this {
+    this.operation = this.operation === "select" ? "select" : this.operation;
+    this.countOnly = this.head;
+    return this;
+  }
+
+  private whereClause(alias: string): string {
+    const parts: string[] = [];
+    for (const filter of this.filters) {
+      const col =
+        filter.kind === "or"
+          ? ""
+          : alias
+            ? `${alias}.${quoteIdent(filter.column)}`
+            : quoteIdent(filter.column);
+      if (filter.kind === "in") {
+        if (!filter.value.length) {
+          parts.push("FALSE");
+        } else {
+          parts.push(`${col} = ANY(${this.param(filter.value)})`);
+        }
+      } else if (filter.kind === "or") {
+        const ors = filter.clauses.map((clause) => {
+          const column = alias ? `${alias}.${quoteIdent(clause.column)}` : quoteIdent(clause.column);
+          return clause.op === "ilike"
+            ? `${column} ILIKE ${this.param(`%${clause.value}%`)}`
+            : `${column} = ${this.param(clause.value)}`;
+        });
+        if (ors.length) parts.push(`(${ors.join(" OR ")})`);
+      } else {
+        const op = filter.kind === "eq" ? "=" : filter.kind === "neq" ? "<>" : ">";
+        parts.push(`${col} ${op} ${this.param(filter.value)}`);
+      }
+    }
+    return parts.length ? ` WHERE ${parts.join(" AND ")}` : "";
+  }
+
+  private selectColumns(alias: string): string {
+    const cols = String(this.columns || "*")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((c) => (c === "*" ? `${alias}.*` : `${alias}.${quoteIdent(c)}`));
+    return cols.length ? cols.join(", ") : `${alias}.*`;
+  }
+
+  private returningColumns(): string {
+    const cols = String(this.columns || "*")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((c) => (c === "*" ? "*" : quoteIdent(c)));
+    return cols.length ? cols.join(", ") : "*";
+  }
+
+  private async execute(): Promise<DbResult> {
+    this.params = [];
+    const table = quoteIdent(this.table);
+
+    try {
+      if (this.countOnly) {
+        const sql = `SELECT COUNT(*)::int AS n FROM ${table}${this.whereClause("t")}`;
+        const result = await getPool().query(sql, this.params);
+        return { data: null as unknown as DbData, count: Number(result.rows[0]?.n ?? 0), error: null };
+      }
+
+      if (this.operation === "select") {
+        const embedded = this.embedded;
+        const alias = embedded ? "t" : quoteIdent(this.table);
+        let sql: string;
+
+        if (embedded) {
+          const joinTable = quoteIdent(embedded.table);
+          const embeddedCols = embedded.columns
+            ? embedded.columns.split(",").map((c) => quoteIdent(c.trim())).join(", ")
+            : "*";
+          sql =
+            `SELECT ${this.selectColumns("t")}, ` +
+            `(CASE WHEN e.id IS NULL THEN NULL ELSE to_jsonb(e) END) AS ${quoteIdent(embedded.table)} ` +
+            `FROM ${table} t LEFT JOIN ${joinTable} e ON e.id = t.product_id` +
+            this.whereClause("t");
+          void embeddedCols;
+        } else {
+          sql = `SELECT ${this.selectColumns(alias)} FROM ${table} AS ${alias}${this.whereClause(alias)}`;
+        }
+
+        if (this.orders.length) {
+          sql += " ORDER BY " + this.orders
+            .map((o) => `${embedded ? "t" : alias}.${quoteIdent(o.column)} ${o.ascending ? "ASC" : "DESC"}`)
+            .join(", ");
+        }
+        if (this.limitValue !== undefined) sql += ` LIMIT ${this.limitValue}`;
+        if (this.offsetValue !== undefined) sql += ` OFFSET ${this.offsetValue}`;
+
+        const result = await getPool().query(sql, this.params);
+        let rows = result.rows;
+        if (this.mode === "single" && rows.length === 0) {
+          return { data: null as unknown as DbData, error: { code: "PGRST116", message: "PGRST116: no rows returned" } };
+        }
+        if (this.mode !== "array") rows = rows.slice(0, 1);
+        return { data: this.mode === "array" ? rows : rows[0] ?? null, error: null };
+      }
+
+      const wantsReturning = this.params.length >= 0 && (this as any)._returning !== false;
+      if (this.operation === "insert" || this.operation === "upsert") {
+        const rows: any[] = Array.isArray(this.payload) ? this.payload : [this.payload];
+        if (!rows.length) return { data: [], error: null };
+        const keys = [...new Set(rows.flatMap((r) => Object.keys(r ?? {})))];
+        const columns = keys.map(quoteIdent).join(", ");
+        const values = rows.map((row) => `(${keys.map((k) => this.param(row[k] ?? null)).join(", ")})`).join(", ");
+        let sql = `INSERT INTO ${table} (${columns}) VALUES ${values}`;
+        if (this.operation === "upsert" && this.upsertKey) {
+          const updates = keys.filter((k) => k !== this.upsertKey).map((k) => `${quoteIdent(k)} = EXCLUDED.${quoteIdent(k)}`);
+          sql += ` ON CONFLICT (${quoteIdent(this.upsertKey)}) DO UPDATE SET ${updates.join(", ")}`;
+        }
+        if (wantsReturning) sql += ` RETURNING ${this.returningColumns()}`;
+        const result = await getPool().query(sql, this.params);
+        return {
+          data: (wantsReturning ? result.rows : null) as unknown as DbData,
+          error: null,
+        };
+      }
+
+      if (this.operation === "update" || this.operation === "delete") {
+        let sql: string;
+        if (this.operation === "update") {
+          const values = this.payload ?? {};
+          const keys = Object.keys(values);
+          if (!keys.length) return { data: [], error: null };
+          const set = keys.map((k) => `${quoteIdent(k)} = ${this.param(values[k])}`).join(", ");
+          sql = `UPDATE ${table} SET ${set}${this.whereClause("")}`;
+        } else {
+          sql = `DELETE FROM ${table}${this.whereClause("")}`;
+        }
+        if (wantsReturning) sql += ` RETURNING ${this.returningColumns()}`;
+        const result = await getPool().query(sql, this.params);
+        return {
+          data: (wantsReturning ? result.rows : null) as unknown as DbData,
+          error: null,
+        };
+      }
+
+      return { data: null as unknown as DbData, error: null };
+    } catch (error) {
+      return { data: null as unknown as DbData, error: toError(error) };
+    }
+  }
+
+  then<TResult1 = DbResult, TResult2 = never>(
+    onfulfilled?: ((value: DbResult) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+}
+
+class TableBuilder {
+  constructor(private table: string) {}
+
+  select(columns: string = "*", options?: { count?: string; head?: boolean }): QueryBuilder {
+    return new QueryBuilder(this.table, "select", columns, undefined, undefined, options?.head === true && options?.count === "exact");
+  }
+  insert(payload: any): QueryBuilder {
+    return new QueryBuilder(this.table, "insert", "*", payload);
+  }
+  update(payload: any): QueryBuilder {
+    return new QueryBuilder(this.table, "update", "*", payload);
+  }
+  delete(): QueryBuilder {
+    return new QueryBuilder(this.table, "delete");
+  }
+  upsert(payload: any, options?: { onConflict?: string }): QueryBuilder {
+    return new QueryBuilder(this.table, "upsert", "*", payload, options?.onConflict);
+  }
+}
+
+let argTypesCache: Record<string, { name: string; type: string }[]> | null = null;
+
+async function functionArgs(name: string): Promise<{ name: string; type: string }[]> {
+  if (!argTypesCache) argTypesCache = {};
+  if (argTypesCache[name]) return argTypesCache[name];
+  const result = await getPool().query(
+    `SELECT pg_get_function_arguments(p.oid) AS args
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE p.proname = $1 AND n.nspname = 'public' LIMIT 1`,
+    [name]
+  );
+  const raw = String(result.rows[0]?.args ?? "");
+  const parsed = raw
+    .split(/,\s*(?=[a-z_][a-z0-9_]*\s+)/i)
+    .map((part) => part.trim().match(/^([a-z_][a-z0-9_]*)\s+(.+)$/i))
+    .filter((m): m is RegExpMatchArray => Boolean(m))
+    .map((m) => ({ name: m[1].toLowerCase(), type: m[2].trim() }));
+  argTypesCache[name] = parsed;
+  return parsed;
+}
+
+export type DatabaseClient = {
+  from: (table: string) => TableBuilder;
+  rpc: (name: string, args?: Record<string, any>) => Promise<DbResult>;
+  removeAllChannels: () => Promise<void>;
+};
+
+const client: DatabaseClient = {
+  from: (table: string) => new TableBuilder(table),
+  removeAllChannels: async () => {},
+
+  async rpc(name: string, args: Record<string, any> = {}) {
+    try {
+      const argsInfo = await functionArgs(name);
+      const params: any[] = [];
+      let i = 0;
+      const placeholders = argsInfo.map((arg) => {
+        const value = args[arg.name];
+        if (value === undefined || value === null) return `NULL::${arg.type}`;
+        params.push(value);
+        i += 1;
+        return `$${i}::${arg.type}`;
+      });
+
+      const sql = `SELECT * FROM ${quoteIdent("public")}.${quoteIdent(name)}(${placeholders.join(", ")})`;
+      const result = await getPool().query(sql, params);
+      const row = result.rows[0];
+      const data = row
+        ? Object.keys(row).length === 1
+          ? row[Object.keys(row)[0]]
+          : row
+        : null;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null as unknown as DbData, error: toError(error) };
+    }
+  },
+};
+
+export function db(): DatabaseClient {
+  // Touch the pool lazily only when a real query runs; db() itself stays sync.
+  return client;
 }
 
 export default db;

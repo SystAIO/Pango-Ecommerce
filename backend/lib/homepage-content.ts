@@ -207,11 +207,7 @@ export const DEFAULT_SECTIONS: HomeSections = {
     ctaLabel: "Shop Winter Wear",
     ctaHref: "/winterwear",
     background: img("1509631179647-0177331693ae", 1800),
-    cards: [
-      { image: img("1523398002811-999ca8dec234", 800), label: "Heavyweight Hoodie", slug: "pango-essential-oversized-hoodie-men" },
-      { image: img("1551028719-00167b16eac5", 800), label: "Oxford Shirt", slug: "pango-oxford-casual-shirt-men" },
-      { image: img("1558769132-cb1aea458c5e", 800), label: "Storm Windcheater", slug: "pango-storm-windcheater-jacket-men" },
-    ],
+    cards: [],
   },
   trustStrip: {
     enabled: true,

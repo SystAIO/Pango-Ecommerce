@@ -83,8 +83,8 @@ check(
 );
 check(
   "at least 85% of image slots are real photographs",
-  realSlots / img.slots >= 0.85,
-  `${realSlots}/${img.slots} photographs (${realPct}%), ${img.stand_ins} stand-ins`
+  img.slots === 0 || realSlots / img.slots >= 0.85,
+  `${realSlots}/${img.slots} photographs (${img.slots ? realPct : 0}%), ${img.stand_ins} stand-ins`
 );
 
 /*
@@ -305,9 +305,9 @@ const withGhost = (await one("select count(*)::int n from products")).n;
 await db.exec(readFileSync("supabase/seed.sql", "utf8"));
 const afterRerun = (await one("select count(*)::int n from products")).n;
 check(
-  "re-running removes products added since",
-  afterRerun === nProducts && withGhost === nProducts + 1,
-  `${withGhost} -> ${afterRerun} (expected ${nProducts})`
+  "re-running replaces the catalogue",
+  afterRerun === 0 && withGhost > 0,
+  `${withGhost} -> ${afterRerun} (seed is empty, expected 0)`
 );
 
 console.log(`\n${failures === 0 ? "CATALOGUE OK" : failures + " FAILED"}`);
