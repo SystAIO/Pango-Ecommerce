@@ -155,10 +155,16 @@ class QueryBuilder implements PromiseLike<DbResult> {
   }
 
   /** Called after insert/update/upsert to request RETURNING rows. */
-  select(_columns?: string): this {
-    this.operation = this.operation === "select" ? "select" : this.operation;
+  select(columns?: string): this {
+    // supabase-js allows `.insert(...).select("id")` to narrow RETURNING cols.
+    if (columns && this.operation !== "select") this.columns = columns;
     this.countOnly = this.head;
     return this;
+  }
+
+  private singleResult(rows: any[]): DbData {
+    if (this.mode !== "array") return (rows[0] ?? null) as unknown as DbData;
+    return rows as unknown as DbData;
   }
 
   private whereClause(alias: string): string {
@@ -273,7 +279,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
         if (wantsReturning) sql += ` RETURNING ${this.returningColumns()}`;
         const result = await getPool().query(sql, this.params);
         return {
-          data: (wantsReturning ? result.rows : null) as unknown as DbData,
+          data: wantsReturning ? this.singleResult(result.rows) : (null as unknown as DbData),
           error: null,
         };
       }
@@ -292,7 +298,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
         if (wantsReturning) sql += ` RETURNING ${this.returningColumns()}`;
         const result = await getPool().query(sql, this.params);
         return {
-          data: (wantsReturning ? result.rows : null) as unknown as DbData,
+          data: wantsReturning ? this.singleResult(result.rows) : (null as unknown as DbData),
           error: null,
         };
       }
