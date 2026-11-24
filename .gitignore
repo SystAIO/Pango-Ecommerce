@@ -68,6 +68,7 @@ coverage/
 
 # Local fallback for admin homepage edits when the Supabase table is absent
 .data/
+backend/uploads/
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  OS / editor noise

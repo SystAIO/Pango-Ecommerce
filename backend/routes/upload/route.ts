@@ -2,6 +2,7 @@ import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 import multer from "multer";
 import { verifyToken } from "../../lib/auth";
 import { uploadToR2, isR2Configured } from "../../lib/r2-store";
+import { uploadToLocal, isLocalUploadConfigured } from "../../lib/local-store";
 import { Router, type Request, type Response } from "express";
 
 const router = Router();
@@ -73,7 +74,17 @@ async function handlePOST(req: Request, res: Response) {
       });
     }
 
-    // 3. Last resort for a fresh checkout with no storage configured.
+    // 3. Local disk on the server (Apache serves the folder publicly).
+    if (isLocalUploadConfigured()) {
+      const result = await uploadToLocal({
+        buffer,
+        folder,
+        filename: file.originalname || `image-${Date.now()}`,
+      });
+      return res.json({ url: result.url, key: result.key, storage: "local" });
+    }
+
+    // 4. Last resort for a fresh checkout with no storage configured.
     const mimeType = file.mimetype || "image/jpeg";
     return res.json({ url: `data:${mimeType};base64,${buffer.toString("base64")}`, storage: "data" });
   } catch (error: any) {
