@@ -117,8 +117,12 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 const PORT = Number(process.env.PORT || 4000);
-app.listen(PORT, () => {
-  console.log(`Pango backend listening on http://localhost:${PORT}`);
+// By default bind only to loopback: Apache/cPanel proxies the public domain to
+// this process, so exposing 4000 directly is unnecessary. Set HOST=0.0.0.0 only
+// if you intentionally need direct access.
+const HOST = process.env.HOST || "127.0.0.1";
+app.listen(PORT, HOST, () => {
+  console.log(`Pango backend listening on http://${HOST}:${PORT}`);
 });
 
 export default app;
