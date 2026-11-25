@@ -16,6 +16,8 @@ const PAGE_SIZE = 12;
  * (IntersectionObserver on a sentinel). The heading/copy comes from the
  * admin-editable `newArrivals` section, but the products always come from the
  * live catalogue — only the order and the category chips narrow what is shown.
+ * Admin-authored cards, if any, are prepended as promos; they never replace
+ * the product grid.
  */
 export default function InfiniteArrivals({
   categories,
@@ -32,8 +34,7 @@ export default function InfiniteArrivals({
   const sentinel = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
 
-  // Admin overrides: a custom category list and/or a fixed set of authored
-  // cards. When cards are supplied there is no infinite fetching to do.
+  // Admin overrides: a custom category list and/or promo cards to prepend.
   const customCategories = csvList(heading.categories);
   const customCards = heading.cards;
   const chips = ["All", ...(customCategories.length > 0 ? customCategories : categories)];
@@ -61,14 +62,14 @@ export default function InfiniteArrivals({
     []
   );
 
-  // Reset whenever the category filter changes. Authored cards need no fetch.
+  // Reset and reload whenever the category filter changes. Promo cards are
+  // fixed content, but the live catalogue must always be fetched behind them.
   useEffect(() => {
-    if (customCards.length > 0) return;
     setProducts([]);
     setOffset(0);
     setDone(false);
     void loadPage(0, category, true);
-  }, [category, loadPage, customCards.length]);
+  }, [category, loadPage]);
 
   // Infinite scroll sentinel.
   useEffect(() => {
@@ -130,44 +131,40 @@ export default function InfiniteArrivals({
 
       {/* Four columns on desktop, matching the campaign grid in the reference. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
-        {customCards.length > 0
-          ? customCards.map((card, index) => (
-              <div key={`custom-${index}`} className="animate-fade-up">
-                <CustomCard card={card} />
-              </div>
-            ))
-          : products.map((product, index) => (
-              <div key={`${product.id || product.slug}-${index}`} className="animate-fade-up">
-                <NewArrivalCard product={product} />
-              </div>
-            ))}
+        {customCards.map((card, index) => (
+          <div key={`custom-${index}`} className="animate-fade-up">
+            <CustomCard card={card} />
+          </div>
+        ))}
+        {products.map((product, index) => (
+          <div key={`${product.id || product.slug}-${index}`} className="animate-fade-up">
+            <NewArrivalCard product={product} />
+          </div>
+        ))}
       </div>
 
-      {customCards.length === 0 && done && products.length > 0 ? (
+      {done && products.length > 0 ? (
         <p className="mt-8 text-center text-xs font-semibold uppercase tracking-widest text-stone-400">
           You are all caught up — {products.length} products shown
         </p>
       ) : null}
 
-      {customCards.length === 0 && done && products.length === 0 ? (
+      {done && products.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-14 text-center text-stone-400">
           <Package className="h-8 w-8" aria-hidden />
           <p className="text-sm font-semibold">Nothing in this category yet — try another chip.</p>
         </div>
       ) : null}
 
-      {/* Sentinel: when it nears the viewport, fetch the next page. Authored
-          cards are a fixed set, so there is nothing more to load. */}
-      {customCards.length === 0 ? (
-        <div ref={sentinel} className="flex h-16 items-center justify-center" aria-hidden>
-          {loading ? (
-            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Loading more
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      {/* Sentinel: when it nears the viewport, fetch the next page. */}
+      <div ref={sentinel} className="flex h-16 items-center justify-center" aria-hidden>
+        {loading ? (
+          <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-400">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading more
+          </span>
+        ) : null}
+      </div>
     </section>
   );
 }

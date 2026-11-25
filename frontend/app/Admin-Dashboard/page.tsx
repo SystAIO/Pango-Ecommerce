@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND_GRID, DEFAULT_BRANDS } from '@/lib/catalog';
+import type { ProductCoupon } from '@/lib/product-shape';
+import { productGender } from '@/lib/gender';
 import { DEFAULT_MENU, menuCategories, type NavbarMenu, type NavbarMenuSection, type NavbarMenuLink } from '@/lib/navbar-menu';
 import Link from 'next/link';
 import HomepageEditor from './HomepageEditor';
@@ -45,8 +47,23 @@ interface Product {
   images?: string[] | string;
   description_intro?: string;
   specifications?: Record<string, Record<string, string>> | string;
+  coupon?: ProductCoupon | null;
   created_at?: string;
 }
+
+type CouponDraft = {
+  code: string;
+  label: string;
+  description: string;
+  minOrder: string;
+  value: string;
+  kind: 'flat' | 'percent';
+  active: boolean;
+};
+
+const EMPTY_COUPON: CouponDraft = {
+  code: '', label: '', description: '', minOrder: '', value: '', kind: 'flat', active: false,
+};
 
 interface SpecItem {
   key: string;
@@ -707,6 +724,7 @@ const AdminDashboard = () => {
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdGallery, setNewProdGallery] = useState('');
   const [newProdIntro, setNewProdIntro] = useState('');
+  const [newProdCoupon, setNewProdCoupon] = useState<CouponDraft>({ ...EMPTY_COUPON });
   const [notification, setNotification] = useState('');
 
   const [specSections, setSpecSections] = useState<SpecSection[]>(() => topwearSpecs('men'));
@@ -917,6 +935,7 @@ const AdminDashboard = () => {
     setNewProdImage('');
     setNewProdGallery('');
     setNewProdIntro('');
+    setNewProdCoupon({ ...EMPTY_COUPON });
     setSpecSections(topwearSpecs('men'));
     setIsProductModalOpen(true);
   };
@@ -930,14 +949,14 @@ const AdminDashboard = () => {
     setCustomCategoryInput('');
     setIsCustomCategory(false);
 
-    // Infer the gender from the product name (seed names carry "— Men" / "— Women").
-    const nameLower = (p.name || '').toLowerCase();
-    const gender: 'men' | 'women' = /women/.test(nameLower)
-      ? 'women'
-      : /men/.test(nameLower)
-        ? 'men'
-        : 'men';
+    // Read the Gender spec the form itself writes, then fall back to the name.
+    const gender: 'men' | 'women' = productGender({ name: p.name, specifications: p.specifications });
     setNewProdGender(gender);
+    // A women-only category may not be in the menu list — keep it editable.
+    if (!menuCategories(catalogueMenu, gender).some((c) => c.toLowerCase() === category.toLowerCase())) {
+      setCustomCategoryInput(category);
+      setIsCustomCategory(true);
+    }
 
     const catBrands = BRAND_GRID[category] || DEFAULT_BRANDS;
     if (p.brand && catBrands.includes(p.brand)) {
@@ -964,6 +983,16 @@ const AdminDashboard = () => {
       : '';
     setNewProdGallery(galleryString);
     setNewProdIntro(p.description_intro || '');
+    const productCoupon = p.coupon;
+    setNewProdCoupon(productCoupon ? {
+      code: productCoupon.code,
+      label: productCoupon.label,
+      description: productCoupon.description,
+      minOrder: String(productCoupon.minOrder),
+      value: String(productCoupon.value),
+      kind: productCoupon.kind,
+      active: productCoupon.active,
+    } : { ...EMPTY_COUPON });
 
     // Parse specifications into SpecSection array
     let rawSpecs = p.specifications;
@@ -979,7 +1008,7 @@ const AdminDashboard = () => {
       // General products have no per-colour galleries; drop any legacy
       // "COLOR VARIANTS" section instead of surfacing it as a normal spec.
       const parsedSections: SpecSection[] = Object.entries(rawSpecs)
-        .filter(([title]) => !title.toLowerCase().includes('color variant'))
+        .filter(([title]) => !title.toLowerCase().includes('color variant') && !title.toLowerCase().includes('product coupon'))
         .map(([secTitle, fields]) => ({
           title: secTitle,
           items:
@@ -1028,6 +1057,15 @@ const AdminDashboard = () => {
       const finalBrand = isCustomBrand ? customBrandInput.trim() : newProdBrand;
       const finalCategory = (isCustomCategory ? customCategoryInput.trim() : newProdCategory).trim();
       const mrpValue = Number(newProdMrp) || 0;
+      const couponPayload = {
+        code: newProdCoupon.code.trim().toUpperCase(),
+        label: newProdCoupon.label.trim(),
+        description: newProdCoupon.description.trim(),
+        minOrder: Number(newProdCoupon.minOrder) || 0,
+        value: Number(newProdCoupon.value) || 0,
+        kind: newProdCoupon.kind,
+        active: newProdCoupon.active,
+      };
 
       if (editingProductSlug) {
         // Update product via PUT
@@ -1046,6 +1084,7 @@ const AdminDashboard = () => {
             image_url: newProdImage,
             images: galleryArray,
             description_intro: newProdIntro,
+            coupon: couponPayload,
             specifications:
               Object.keys(specifications).length > 0
                 ? specifications
@@ -1078,6 +1117,7 @@ const AdminDashboard = () => {
             image_url: newProdImage,
             images: galleryArray,
             description_intro: newProdIntro,
+            coupon: couponPayload,
             specifications:
               Object.keys(specifications).length > 0
                 ? specifications
@@ -2645,6 +2685,76 @@ const AdminDashboard = () => {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════
+                  PRODUCT COUPON — same fields as the combo/collection coupon
+              ═══════════════════════════════════════════════════════ */}
+              <div className="pt-6 border-t border-slate-200">
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-orange-600" />
+                  Product Coupon
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Shown on this product&apos;s detail page with an instant Apply button. It overrides the site-wide coupons.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {([
+                    ['code', 'Code'],
+                    ['label', 'Title'],
+                    ['description', 'Description'],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="text-[10px] font-bold uppercase text-slate-500">
+                      {label}
+                      <input
+                        value={newProdCoupon[field]}
+                        onChange={(e) => setNewProdCoupon({ ...newProdCoupon, [field]: field === 'code' ? e.target.value.toUpperCase() : e.target.value })}
+                        placeholder={field === 'code' ? 'PANGO200' : ''}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal normal-case text-slate-800 outline-none focus:border-orange-500"
+                      />
+                    </label>
+                  ))}
+                  <label className="text-[10px] font-bold uppercase text-slate-500">
+                    Type
+                    <select
+                      value={newProdCoupon.kind}
+                      onChange={(e) => setNewProdCoupon({ ...newProdCoupon, kind: e.target.value as 'flat' | 'percent' })}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-orange-500"
+                    >
+                      <option value="flat">Flat ₹ off</option>
+                      <option value="percent">Percent off</option>
+                    </select>
+                  </label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">
+                    {newProdCoupon.kind === 'flat' ? 'Discount (₹)' : 'Discount (%)'}
+                    <input
+                      type="number"
+                      min={0}
+                      value={newProdCoupon.value}
+                      onChange={(e) => setNewProdCoupon({ ...newProdCoupon, value: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-orange-500"
+                    />
+                  </label>
+                  <label className="text-[10px] font-bold uppercase text-slate-500">
+                    Min order (₹)
+                    <input
+                      type="number"
+                      min={0}
+                      value={newProdCoupon.minOrder}
+                      onChange={(e) => setNewProdCoupon({ ...newProdCoupon, minOrder: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-orange-500"
+                    />
+                  </label>
+                </div>
+                <label className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newProdCoupon.active}
+                    onChange={(e) => setNewProdCoupon({ ...newProdCoupon, active: e.target.checked })}
+                    className="h-4 w-4 accent-orange-600"
+                  />
+                  Coupon active
+                </label>
               </div>
 
               {/* ═══════════════════════════════════════════════════════

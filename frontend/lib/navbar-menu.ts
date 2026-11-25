@@ -185,44 +185,76 @@ export function isNavigationLabel(item: string): boolean {
   return lower.startsWith("all ") || NAVIGATION_LABELS.has(lower);
 }
 
+/** Column titles such as "Shop For Women" mark their items as women's products. */
+export function isWomenLabel(value: string): boolean {
+  const lower = value.trim().toLowerCase();
+  return ["women", "woman", "ladies", "lady", "girls", "girl", "female"].some((word) =>
+    lower.includes(word)
+  );
+}
+
 /**
  * Product-listing URL for a menu item.
  *
  * Umbrella/navigation entries link to the plain catalogue; real category names
  * link to the exact category filter on the catalogue page.
  */
-export function menuItemHref(item: string): string {
+export function menuItemHref(item: string, gender?: "men" | "women"): string {
   const trimmed = item.trim();
-  if (!trimmed || isNavigationLabel(trimmed)) return "/product-page";
+  if (!trimmed) return "/product-page";
+
+  // Items under "Shop For Women" are navigation rows ("Topwear", "View All",
+  // …), but they must still narrow the catalogue to women's products instead
+  // of showing the entire store. A real category there is narrowed by both.
+  if (gender === "women") {
+    const qs = new URLSearchParams({ gender: "women" });
+    if (!isNavigationLabel(trimmed) && !isWomenLabel(trimmed)) qs.set("category", trimmed);
+    return `/product-page?${qs.toString()}`;
+  }
+  if (isNavigationLabel(trimmed)) return "/product-page";
 
   const qs = new URLSearchParams();
   qs.set("category", trimmed);
   return `/product-page?${qs.toString()}`;
 }
 
+/** Women's departments that are not always present in the editable navbar. */
+const WOMEN_CATEGORIES = [
+  "Co-ord Sets", "Crop Tops", "Tops", "Kurtis", "Kurtas", "Sarees",
+  "Dresses", "Skirts", "Women T-Shirts", "Women Trousers", "Women Jeans",
+];
+
 /**
  * Sellable product categories, derived from the (admin-editable) menu.
  *
  * Navigation rows ("View All", "Shop For Women", …) are not categories and are
- * filtered out. A category the admin adds in Customize Navbar shows up in the
- * product form immediately; deleting one removes it from new-product selection
- * while leaving existing products untouched.
+ * filtered out. The gender picker narrows this list: "women" leads with the
+ * women's departments (and still offers every navbar category), while "men"
+ * leaves those women-only departments out. A category the admin adds in
+ * Customize Navbar shows up in the product form immediately.
  */
-export function menuCategories(
-  menu: NavbarMenu,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _gender: "men" | "women" | "all" = "all"
-): string[] {
+export function menuCategories(menu: NavbarMenu, gender: "men" | "women" | "all" = "all"): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
+  const add = (item: string) => {
+    const lower = item.trim().toLowerCase();
+    if (!lower || seen.has(lower)) return;
+    seen.add(lower);
+    out.push(item.trim());
+  };
+
+  if (gender === "women") WOMEN_CATEGORIES.forEach(add);
+
   for (const section of [menu.topwear, menu.bottomwear]) {
     for (const column of section.columns) {
+      const womenColumn = isWomenLabel(column.title);
       for (const raw of column.items) {
         const item = raw.trim();
-        const lower = item.toLowerCase();
-        if (!item || isNavigationLabel(item) || seen.has(lower)) continue;
-        seen.add(lower);
-        out.push(item);
+        if (!item || isNavigationLabel(item)) continue;
+        if (gender === "men" && (womenColumn || WOMEN_CATEGORIES.some((c) => c.toLowerCase() === item.toLowerCase()))) {
+          continue;
+        }
+        add(item);
       }
     }
   }

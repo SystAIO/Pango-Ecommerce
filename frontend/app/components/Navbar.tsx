@@ -10,7 +10,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { DEFAULT_MENU, menuItemHref, type NavbarMenu } from "@/lib/navbar-menu";
+import { DEFAULT_MENU, isWomenLabel, menuItemHref, type NavbarMenu } from "@/lib/navbar-menu";
 
 export default function Navbar() {
   const router = useRouter();
@@ -253,24 +253,37 @@ export default function Navbar() {
                             : "grid-cols-3 lg:grid-cols-4"
                       }`}
                     >
-                      {menu[activeMenu].columns.map((col) => (
-                        <div key={col.title}>
-                          <p className="mb-4 text-sm font-semibold text-[#171512]">{col.title}</p>
-                          <ul className="space-y-4">
-                            {col.items.map((item) => (
-                              <li key={item}>
-                                <Link
-                                  href={menuItemHref(item)}
-                                  onClick={() => setActiveMenu(null)}
-                                  className="text-sm text-stone-500 transition-colors hover:text-[#171512]"
-                                >
-                                  {item}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                      {menu[activeMenu].columns.map((col) => {
+                        const women = isWomenLabel(col.title);
+                        return (
+                          <div key={col.title}>
+                            {women ? (
+                              <Link
+                                href={menuItemHref(col.title, "women")}
+                                onClick={() => setActiveMenu(null)}
+                                className="mb-4 block text-sm font-semibold text-[#171512] transition-colors hover:text-orange-600"
+                              >
+                                {col.title}
+                              </Link>
+                            ) : (
+                              <p className="mb-4 text-sm font-semibold text-[#171512]">{col.title}</p>
+                            )}
+                            <ul className="space-y-4">
+                              {col.items.map((item) => (
+                                <li key={item}>
+                                  <Link
+                                    href={menuItemHref(item, women ? "women" : undefined)}
+                                    onClick={() => setActiveMenu(null)}
+                                    className="text-sm text-stone-500 transition-colors hover:text-[#171512]"
+                                  >
+                                    {item}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -431,26 +444,39 @@ export default function Navbar() {
 
                     {isExpanded && (
                       <div className="border-t border-stone-100 bg-stone-50 px-4 pb-5 pt-3">
-                        {section.columns.map((col) => (
-                          <div key={col.title} className="mb-4 last:mb-0">
-                            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-stone-400">
-                              {col.title}
-                            </p>
-                            <ul className="space-y-1.5">
-                              {col.items.map((item) => (
-                                <li key={item}>
-                                  <Link
-                                    href={menuItemHref(item)}
-                                    onClick={() => setMobileOpen(false)}
-                                    className="block rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm active:scale-[0.98]"
-                                  >
-                                    {item}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
+                        {section.columns.map((col) => {
+                          const women = isWomenLabel(col.title);
+                          return (
+                            <div key={col.title} className="mb-4 last:mb-0">
+                              {women ? (
+                                <Link
+                                  href={menuItemHref(col.title, "women")}
+                                  onClick={() => setMobileOpen(false)}
+                                  className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-orange-600"
+                                >
+                                  {col.title}
+                                </Link>
+                              ) : (
+                                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-stone-400">
+                                  {col.title}
+                                </p>
+                              )}
+                              <ul className="space-y-1.5">
+                                {col.items.map((item) => (
+                                  <li key={item}>
+                                    <Link
+                                      href={menuItemHref(item, women ? "women" : undefined)}
+                                      onClick={() => setMobileOpen(false)}
+                                      className="block rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm active:scale-[0.98]"
+                                    >
+                                      {item}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

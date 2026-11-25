@@ -1573,7 +1573,7 @@ export default function HomepageEditor() {
             </div>
           </div>
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <Label hint="optional — add fixed cards to replace the live grid">Cards in this grid</Label>
+            <Label hint="optional — fixed cards are shown above the live product grid">Cards in this grid</Label>
             <div className="mt-2">
               <CardsEditor
                 cards={sections.newArrivals.cards}

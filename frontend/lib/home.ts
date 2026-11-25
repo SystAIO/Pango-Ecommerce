@@ -263,6 +263,7 @@ function fallback(over: Partial<Product> & Pick<Product, "name" | "slug" | "pric
     images: [],
     description_intro: over.description_intro ?? "",
     specifications: {},
+    coupon: null,
     badge: over.badge ?? "",
     rating: over.rating ?? 4.5,
     review_count: over.review_count ?? 0,

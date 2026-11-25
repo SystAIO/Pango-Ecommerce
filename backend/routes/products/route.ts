@@ -8,18 +8,20 @@ const router = Router();
 /**
  * GET /api/products — the catalogue, newest first.
  *
- * Supports `?category=`, `?brand=`, `?search=` and `?limit=`.
+ * Supports `?category=`, `?brand=`, `?search=`, `?gender=` and `?limit=`/`?offset=`.
  */
 async function handleGET(req: Request, res: Response) {
   try {
     const { searchParams } = new URL(req.url, "http://localhost");
     const limitParam = Number(searchParams.get("limit"));
     const offsetParam = Number(searchParams.get("offset"));
+    const genderParam = searchParams.get("gender");
 
     const products = await listProducts({
       category: searchParams.get("category") || undefined,
       brand: searchParams.get("brand") || undefined,
       search: searchParams.get("search") || undefined,
+      gender: genderParam === "women" || genderParam === "men" ? genderParam : undefined,
       limit: Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined,
       offset: Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : undefined,
     });

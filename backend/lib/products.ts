@@ -13,8 +13,16 @@
  */
 
 import { db } from "./db";
+import { productGender } from "./gender";
 import { asRow, asRows, json, num } from "./supabase";
-import { toProduct, toProducts, type Product, type ProductRow } from "./product-shape";
+import {
+  normaliseProductCoupon,
+  PRODUCT_COUPON_KEY,
+  toProduct,
+  toProducts,
+  type Product,
+  type ProductRow,
+} from "./product-shape";
 
 export type { Product, ProductRow };
 export { toProduct, toProducts };
@@ -29,6 +37,8 @@ export type ProductQuery = {
   category?: string;
   brand?: string;
   search?: string;
+  /** Gender lives in specifications/name — "Shop For Women" uses this. */
+  gender?: "men" | "women";
   /** Cap the number of rows returned. */
   limit?: number;
   /** Skip this many rows (for infinite scroll / pagination). */
@@ -49,19 +59,30 @@ export async function listProducts(options: ProductQuery = {}): Promise<Product[
     const term = `%${options.search.replace(/[%_,]/g, " ")}%`;
     query = query.or(`name.ilike.${term},brand.ilike.${term},category.ilike.${term}`);
   }
-  if (options.offset && options.offset > 0) {
-    const from = options.offset;
-    // PostgREST .range() is inclusive; use it instead of .limit() so offset+limit
-    // don't fight each other.
-    query = options.limit ? query.range(from, from + options.limit - 1) : query.range(from, from + 999);
-  } else if (options.limit) {
-    query = query.limit(options.limit);
+  // Gender is inferred from each product's specs/name, so it can only be
+  // applied after the rows arrive. Skip SQL pagination in that case and slice
+  // the filtered list instead, or the page size would truncate before filtering.
+  if (!options.gender) {
+    if (options.offset && options.offset > 0) {
+      const from = options.offset;
+      // PostgREST .range() is inclusive; use it instead of .limit() so offset+limit
+      // don't fight each other.
+      query = options.limit ? query.range(from, from + options.limit - 1) : query.range(from, from + 999);
+    } else if (options.limit) {
+      query = query.limit(options.limit);
+    }
   }
 
   const { data, error } = await query;
   if (error) throw error;
 
-  return toProducts(asRows<ProductRow>(data));
+  let products = toProducts(asRows<ProductRow>(data));
+  if (options.gender) {
+    products = products.filter((product) => productGender(product) === options.gender);
+    const from = options.offset && options.offset > 0 ? options.offset : 0;
+    products = options.limit ? products.slice(from, from + options.limit) : products.slice(from);
+  }
+  return products;
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
@@ -106,7 +127,7 @@ export type ProductInput = {
   image_url?: string | null;
   images?: string[];
   description_intro?: string;
-  specifications?: Record<string, string>;
+  specifications?: Record<string, unknown>;
   badge?: string;
   rating?: number;
   review_count?: number;
@@ -119,6 +140,26 @@ export type ProductInput = {
 
 /** Coerces a request body into a valid insert/update payload. */
 export function toProductInput(body: Record<string, unknown>): ProductInput {
+  // A product's own coupon is kept in a reserved spec section: the products
+  // table already has a jsonb column for specifications, so no migration (and
+  // no second API/store) is needed. Any stale reserved key is replaced.
+  const specifications: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(json<Record<string, unknown>>(body.specifications, {}))) {
+    if (key.toLowerCase() !== PRODUCT_COUPON_KEY.toLowerCase()) specifications[key] = value;
+  }
+  const coupon = normaliseProductCoupon(body.coupon);
+  if (coupon) {
+    specifications[PRODUCT_COUPON_KEY] = {
+      code: coupon.code,
+      label: coupon.label,
+      description: coupon.description,
+      minOrder: String(coupon.minOrder),
+      value: String(coupon.value),
+      kind: coupon.kind,
+      active: String(coupon.active),
+    };
+  }
+
   return {
     name: String(body.name ?? "").trim(),
     slug: String(body.slug ?? "")
@@ -133,7 +174,7 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
     image_url: body.image_url ? String(body.image_url) : null,
     images: Array.isArray(body.images) ? body.images.map(String) : [],
     description_intro: String(body.description_intro ?? ""),
-    specifications: json<Record<string, string>>(body.specifications, {}),
+    specifications,
     badge: String(body.badge ?? ""),
     rating: num(body.rating),
     review_count: num(body.review_count),

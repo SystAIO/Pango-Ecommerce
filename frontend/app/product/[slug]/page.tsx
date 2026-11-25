@@ -16,6 +16,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { inr } from "@/lib/site";
 import type { SizeGuideRow } from "@/lib/catalog-config";
 import { DEFAULT_CATALOG_CONFIG } from "@/lib/catalog-config";
+import { productGender } from "@/lib/gender";
 
 type ColorVariant = { name: string; images: string[] };
 
@@ -185,6 +186,7 @@ export default function ProductDetailPage() {
   const [config, setConfig] = useState(DEFAULT_CATALOG_CONFIG);
   const [loading, setLoading] = useState(true);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [zoomPoint, setZoomPoint] = useState<{ x: number; y: number } | null>(null);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [sizeError, setSizeError] = useState("");
@@ -271,7 +273,13 @@ export default function ProductDetailPage() {
   const mrp = Number(product?.mrp) || 0;
   const discount = mrp > price && price > 0 ? Math.round((1 - price / mrp) * 100) : 0;
 
-  const applicableCoupons = config.coupons.filter((c) => c.active && c.minOrder <= price && c.value > 0);
+  // A coupon set on this product wins over the site-wide offers.
+  const ownCoupon = product?.coupon;
+  const applicableCoupons = ownCoupon
+    ? ownCoupon.active && ownCoupon.minOrder <= price && ownCoupon.value > 0
+      ? [ownCoupon]
+      : []
+    : config.coupons.filter((c) => c.active && c.minOrder <= price && c.value > 0);
   const appliedCoupon = applicableCoupons.find((c) => c.code === appliedCode);
   const couponSaving = appliedCoupon
     ? Math.min(price, appliedCoupon.kind === "percent" ? Math.round((price * appliedCoupon.value) / 100) : appliedCoupon.value)
@@ -364,7 +372,9 @@ export default function ProductDetailPage() {
         <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500">
           <Link href="/" className="hover:text-orange-600">Home</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href={`/product-page?category=${encodeURIComponent(product.category)}`} className="hover:text-orange-600">Men&apos;s New Arrival</Link>
+          <Link href={`/product-page?category=${encodeURIComponent(product.category)}`} className="hover:text-orange-600">
+            {productGender(product) === "women" ? "Women's New Arrival" : "Men's New Arrival"}
+          </Link>
           <ChevronRight className="h-3 w-3" />
           <span className="font-semibold text-stone-800">{product.name}</span>
         </nav>
@@ -387,23 +397,51 @@ export default function ProductDetailPage() {
               ))}
             </div>
             <div className="group relative min-w-0 flex-1">
-              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#f1ede6]">
+              <div
+                className="relative aspect-[4/5] cursor-zoom-in overflow-hidden rounded-2xl bg-[#f1ede6]"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setZoomPoint({
+                    x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+                    y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+                  });
+                }}
+                onMouseLeave={() => setZoomPoint(null)}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={images[galleryIndex]} alt={product.name} className="h-full w-full object-cover object-top" />
+                {/* Amazon-style hover zoom: a 2x copy tracks the pointer so the
+                    area under the cursor is magnified inside the same frame. */}
+                {zoomPoint ? (
+                  <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={images[galleryIndex]}
+                      alt=""
+                      className="absolute max-w-none object-cover object-top"
+                      style={{
+                        width: "200%",
+                        height: "200%",
+                        left: `${-zoomPoint.x * 100}%`,
+                        top: `${-zoomPoint.y * 100}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
                 {product.badge || product.category ? (
-                  <span className="absolute bottom-3 left-3 rounded bg-black/85 px-3 py-1.5 text-[11px] font-bold text-white">
+                  <span className="absolute bottom-3 left-3 z-20 rounded bg-black/85 px-3 py-1.5 text-[11px] font-bold text-white">
                     {product.badge || product.category}
                   </span>
                 ) : null}
-                <button type="button" onClick={() => toggleFavorite(Number(product.id))} aria-label="Save to wishlist" className="absolute right-3 top-3 rounded-full bg-white p-2 shadow-sm">
+                <button type="button" onClick={() => toggleFavorite(Number(product.id))} aria-label="Save to wishlist" className="absolute right-3 top-3 z-20 rounded-full bg-white p-2 shadow-sm">
                   <Heart className={`h-5 w-5 ${isFavorite(Number(product.id)) ? "fill-rose-500 text-rose-500" : "text-stone-500"}`} />
                 </button>
                 {images.length > 1 ? (
                   <>
-                    <button type="button" onClick={() => setGalleryIndex((i) => (i - 1 + images.length) % images.length)} aria-label="Previous image" className="absolute left-3 top-1/2 rounded-full bg-white/80 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button type="button" onClick={() => setGalleryIndex((i) => (i - 1 + images.length) % images.length)} aria-label="Previous image" className="absolute left-3 top-1/2 z-20 rounded-full bg-white/80 p-2 opacity-0 transition-opacity group-hover:opacity-100">
                       <ChevronLeft className="h-5 w-5" />
                     </button>
-                    <button type="button" onClick={() => setGalleryIndex((i) => (i + 1) % images.length)} aria-label="Next image" className="absolute right-3 top-1/2 rounded-full bg-white/80 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button type="button" onClick={() => setGalleryIndex((i) => (i + 1) % images.length)} aria-label="Next image" className="absolute right-3 top-1/2 z-20 rounded-full bg-white/80 p-2 opacity-0 transition-opacity group-hover:opacity-100">
                       <ChevronRight className="h-5 w-5" />
                     </button>
                   </>

@@ -153,6 +153,8 @@ function CatalogueContent() {
   const categoryParam = searchParams.get("category") ?? "";
   const brandParam = searchParams.get("brand") ?? "";
   const searchParam = searchParams.get("search") ?? "";
+  const genderParam = searchParams.get("gender") ?? "";
+  const isWomen = genderParam === "women";
 
   const [config, setConfig] = useState<CatalogConfig>(DEFAULT_CATALOG_CONFIG);
   const [products, setProducts] = useState<Product[]>([]);
@@ -175,13 +177,14 @@ function CatalogueContent() {
     if (categoryParam) params.set("category", categoryParam);
     if (brandParam) params.set("brand", brandParam);
     if (searchParam) params.set("search", searchParam);
+    if (isWomen) params.set("gender", "women");
     setLoading(true);
     fetch(`/api/products?${params}`)
       .then((r) => (r.ok ? r.json() : { products: [] }))
       .then((data: { products?: Product[] }) => setProducts(data.products ?? []))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [categoryParam, brandParam, searchParam]);
+  }, [categoryParam, brandParam, searchParam, isWomen]);
 
   const groups = useMemo(() => config.groups.filter((g) => g.enabled), [config.groups]);
 
@@ -254,7 +257,11 @@ function CatalogueContent() {
 
   const activeCount = Object.values(selected).reduce((n, v) => n + v.length, 0);
   const clearAll = () => setSelected({});
-  const heading = categoryParam || searchParam || config.collection.heading || "All Products";
+  const heading = isWomen
+    ? categoryParam
+      ? `${categoryParam} for Women`
+      : "Women's Collection"
+    : categoryParam || searchParam || config.collection.heading || "All Products";
 
   const sidebar = (
     <div className="rounded-2xl border border-stone-200 bg-white">
@@ -295,6 +302,12 @@ function CatalogueContent() {
           <Link href="/" className="hover:text-orange-600">Home</Link>
           <ChevronRight className="h-3 w-3" />
           <Link href="/product-page" className="hover:text-orange-600">All Products</Link>
+          {isWomen ? (
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <Link href="/product-page?gender=women" className="hover:text-orange-600">Women</Link>
+            </>
+          ) : null}
           {categoryParam ? (
             <>
               <ChevronRight className="h-3 w-3" />

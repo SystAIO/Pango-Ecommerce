@@ -7,6 +7,8 @@
  */
 import {
   DEFAULT_MENU,
+  menuCategories,
+  menuItemHref,
   quickShopHref,
   resolveQuickShopCategory,
   type NavbarMenu,
@@ -80,6 +82,32 @@ check(
   "javascript: link is rejected",
   quickShopHref("Custom", "javascript:alert(1)", LIVE_MENU) === "/product-page"
 );
+
+console.log("\nShop For Women menu links");
+check(
+  "Shop For Women → women's catalogue",
+  menuItemHref("Shop For Women", "women") === "/product-page?gender=women"
+);
+check(
+  "Topwear under women → women's catalogue",
+  menuItemHref("Topwear", "women") === "/product-page?gender=women"
+);
+check(
+  "View All under women → women's catalogue",
+  menuItemHref("View All", "women") === "/product-page?gender=women"
+);
+check(
+  "ordinary category link is unchanged",
+  menuItemHref("Plain T-Shirts") === "/product-page?category=Plain+T-Shirts"
+);
+
+console.log("\ngender-aware category picker");
+const womenCategories = menuCategories(LIVE_MENU, "women");
+const menCategories = menuCategories(LIVE_MENU, "men");
+check("women categories lead with women's departments", womenCategories[0] === "Co-ord Sets", womenCategories.slice(0, 3).join(", "));
+check("women categories still include navbar categories", womenCategories.includes("Plain T-Shirts"));
+check("men categories exclude women-only departments", !menCategories.includes("Co-ord Sets"));
+check("men categories keep regular categories", menCategories.includes("Plain T-Shirts"));
 
 console.log(`\n${failures === 0 ? "QUICK SHOP OK" : `${failures} FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);
