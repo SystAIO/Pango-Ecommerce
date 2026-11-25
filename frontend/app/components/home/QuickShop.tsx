@@ -1,8 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { DEFAULT_MENU, quickShopHref, type NavbarMenu } from "@/lib/navbar-menu";
+import { quickShopHref, type NavbarMenu } from "@/lib/navbar-menu";
 import type { HomeSections } from "@/lib/homepage-content";
 
 /**
@@ -13,33 +10,13 @@ import type { HomeSections } from "@/lib/homepage-content";
  * so a stale link in the saved content can never send a shopper to the wrong
  * category.
  */
-export default function QuickShop({ quickShop }: { quickShop: HomeSections["quickShop"] }) {
-  const [menu, setMenu] = useState<NavbarMenu>(DEFAULT_MENU);
-
-  useEffect(() => {
-    let alive = true;
-    // Same payload the navbar uses. Until it arrives, DEFAULT_MENU already
-    // resolves the common labels, so server-rendered links are never broken.
-    fetch("/api/navbar-menu")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: NavbarMenu | null) => {
-        if (
-          alive &&
-          data?.topwear?.columns?.length &&
-          data?.bottomwear?.columns?.length &&
-          Array.isArray(data?.links)
-        ) {
-          setMenu(data);
-        }
-      })
-      .catch(() => {
-        /* keep the defaults */
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
+export default function QuickShop({
+  quickShop,
+  menu,
+}: {
+  quickShop: HomeSections["quickShop"];
+  menu: NavbarMenu;
+}) {
   if (!quickShop.enabled || quickShop.items.length === 0) return null;
 
   return (

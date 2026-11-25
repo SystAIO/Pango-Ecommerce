@@ -13,7 +13,7 @@ import QuickShop from "./components/home/QuickShop";
 import Reviews from "./components/home/Reviews";
 import InfiniteArrivals from "./components/home/InfiniteArrivals";
 import HomeRefresh from "./components/home/HomeRefresh";
-import { loadCollection, loadCombos, loadHomeData, loadHomeSections } from "@/lib/home-data";
+import { loadCollection, loadCombos, loadHomeData, loadHomeSections, loadNavbarMenu } from "@/lib/home-data";
 import { csvList, type HomeSectionKey } from "@/lib/homepage-content";
 import type { Product } from "@/lib/product-shape";
 import { SITE } from "@/lib/site";
@@ -56,9 +56,10 @@ function pickProducts(
 }
 
 export default async function Home() {
-  const [data, sections, comboData, newArrivalsData] = await Promise.all([
+  const [data, sections, menu, comboData, newArrivalsData] = await Promise.all([
     loadHomeData(),
     loadHomeSections(),
+    loadNavbarMenu(),
     loadCombos(),
     loadCollection("new-arrivals"),
   ]);
@@ -116,7 +117,7 @@ export default async function Home() {
           overlay
         />
       ) : null,
-    quickShop: <QuickShop quickShop={sections.quickShop} />,
+    quickShop: <QuickShop quickShop={sections.quickShop} menu={menu} />,
     reviews: <Reviews reviews={sections.reviews} />,
     newArrivals: sections.newArrivals.enabled ? (
       <InfiniteArrivals categories={categoryNames} heading={sections.newArrivals} />

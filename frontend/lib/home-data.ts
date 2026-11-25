@@ -16,6 +16,12 @@ import type { ComboData } from "./combo-data";
 import { DEFAULT_COMBO_DATA } from "./combo-data";
 import { DEFAULT_COLLECTIONS, type CollectionData } from "./collection-data";
 import { DEFAULT_SECTIONS, mergeSections, type HomeSections } from "./homepage-content";
+import {
+  DEFAULT_MENU,
+  validateMenuLinks,
+  validateMenuSection,
+  type NavbarMenu,
+} from "./navbar-menu";
 
 export type HomeSource = "database" | "fallback";
 
@@ -103,6 +109,29 @@ export async function loadHomeSections(): Promise<HomeSections> {
   } catch (error) {
     console.error("loadHomeSections failed:", error);
     return structuredClone(DEFAULT_SECTIONS);
+  }
+}
+
+/**
+ * Loads the admin-editable navbar menu so server-rendered links (Quick Shop
+ * tiles) point at the categories that are actually in the navbar. Falls back
+ * to the built-in menu when the backend is unreachable.
+ */
+export async function loadNavbarMenu(): Promise<NavbarMenu> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/navbar-menu`, { cache: "no-store" });
+    if (!res.ok) {
+      console.error(`GET /api/navbar-menu responded ${res.status}`);
+      return DEFAULT_MENU;
+    }
+    const data = (await res.json()) as Record<string, unknown>;
+    const topwear = validateMenuSection(data?.topwear);
+    const bottomwear = validateMenuSection(data?.bottomwear);
+    const links = validateMenuLinks(data?.links);
+    return topwear && bottomwear && links ? { topwear, bottomwear, links } : DEFAULT_MENU;
+  } catch (error) {
+    console.error("loadNavbarMenu failed:", error);
+    return DEFAULT_MENU;
   }
 }
 
