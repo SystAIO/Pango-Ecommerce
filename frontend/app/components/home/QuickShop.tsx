@@ -1,12 +1,45 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { DEFAULT_MENU, quickShopHref, type NavbarMenu } from "@/lib/navbar-menu";
 import type { HomeSections } from "@/lib/homepage-content";
 
 /**
  * "Quick shop by CATEGORIES" — a grid of rectangular photo tiles, one per
- * department, so a shopper can jump straight into a category. Labels, images
- * and links are all editable in Admin → Customize Homepage → Quick shop.
+ * department, so a shopper can jump straight into a category. Labels and
+ * images are editable in Admin → Customize Homepage → Quick shop; each tile
+ * links to the matching category from the (also admin-editable) navbar menu,
+ * so a stale link in the saved content can never send a shopper to the wrong
+ * category.
  */
 export default function QuickShop({ quickShop }: { quickShop: HomeSections["quickShop"] }) {
+  const [menu, setMenu] = useState<NavbarMenu>(DEFAULT_MENU);
+
+  useEffect(() => {
+    let alive = true;
+    // Same payload the navbar uses. Until it arrives, DEFAULT_MENU already
+    // resolves the common labels, so server-rendered links are never broken.
+    fetch("/api/navbar-menu")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: NavbarMenu | null) => {
+        if (
+          alive &&
+          data?.topwear?.columns?.length &&
+          data?.bottomwear?.columns?.length &&
+          Array.isArray(data?.links)
+        ) {
+          setMenu(data);
+        }
+      })
+      .catch(() => {
+        /* keep the defaults */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   if (!quickShop.enabled || quickShop.items.length === 0) return null;
 
   return (
@@ -24,7 +57,7 @@ export default function QuickShop({ quickShop }: { quickShop: HomeSections["quic
         {quickShop.items.map((item, index) => (
           <Link
             key={index}
-            href={item.href}
+            href={quickShopHref(item.label, item.href, menu)}
             className="group flex animate-scale-in flex-col"
             style={{ animationDelay: `${index * 70}ms` }}
           >

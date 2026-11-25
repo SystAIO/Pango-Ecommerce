@@ -1310,7 +1310,7 @@ export default function HomepageEditor() {
         {/* ── QUICK SHOP ── */}
         <SectionCard
           title="Quick shop by categories"
-          description="Rectangular category tiles. Each needs a label, an image and a link."
+          description="Rectangular category tiles. Each needs a label and an image; the link is matched to a category in the navbar menu automatically."
           enabled={sections.quickShop.enabled}
           onToggle={(v) => patch("quickShop", { enabled: v })}
         >
@@ -1370,7 +1370,7 @@ export default function HomepageEditor() {
                           ),
                         })
                       }
-                      placeholder="/product-page?category=Shirts"
+                      placeholder="/new-arrivals (only if not a navbar category)"
                     />
                     <ImageField
                       label="Photo"

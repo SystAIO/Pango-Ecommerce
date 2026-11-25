@@ -87,7 +87,7 @@ const CATEGORY_LINKS = [
   "Trackpants",
 ];
 
-const PAYMENT_METHODS = ["UPI", "Razorpay", "COD", "RuPay", "Net Banking", "EMI"];
+const PAYMENT_METHODS = ["UPI", "Razorpay", "COD", "RuPay", "Net Banking"];
 
 const SOCIALS = [
   { label: "Instagram", href: "#", name: "instagram" },

@@ -710,7 +710,6 @@ const AdminDashboard = () => {
   const [notification, setNotification] = useState('');
 
   const [specSections, setSpecSections] = useState<SpecSection[]>(() => topwearSpecs('men'));
-  const [colorVariants, setColorVariants] = useState<{ name: string; images: string }[]>([]);
 
   const showNotice = (msg: string) => {
     setNotification(msg);
@@ -919,7 +918,6 @@ const AdminDashboard = () => {
     setNewProdGallery('');
     setNewProdIntro('');
     setSpecSections(topwearSpecs('men'));
-    setColorVariants([]);
     setIsProductModalOpen(true);
   };
 
@@ -978,30 +976,24 @@ const AdminDashboard = () => {
     }
 
     if (rawSpecs && typeof rawSpecs === 'object' && Object.keys(rawSpecs).length > 0) {
-      const parsedSections: SpecSection[] = Object.entries(rawSpecs).map(([secTitle, fields]) => ({
-        title: secTitle,
-        items:
-          fields && typeof fields === 'object'
-            ? Object.entries(fields as Record<string, string>).map(([k, v]) => ({
-                key: k,
-                value: String(v),
-              }))
-            : [],
-      }));
+      // General products have no per-colour galleries; drop any legacy
+      // "COLOR VARIANTS" section instead of surfacing it as a normal spec.
+      const parsedSections: SpecSection[] = Object.entries(rawSpecs)
+        .filter(([title]) => !title.toLowerCase().includes('color variant'))
+        .map(([secTitle, fields]) => ({
+          title: secTitle,
+          items:
+            fields && typeof fields === 'object'
+              ? Object.entries(fields as Record<string, string>).map(([k, v]) => ({
+                  key: k,
+                  value: String(v),
+                }))
+              : [],
+        }));
       setSpecSections(parsedSections.length > 0 ? parsedSections : specTemplateFor(p.category || '', gender));
     } else {
       setSpecSections(specTemplateFor(p.category || '', gender));
     }
-
-    // Colour variants (each colour has its own gallery images)
-    const variantEntry = rawSpecs && typeof rawSpecs === 'object'
-      ? Object.entries(rawSpecs as Record<string, unknown>).find(([title]) => title.toLowerCase().includes('color variant'))
-      : null;
-    setColorVariants(
-      variantEntry && variantEntry[1] && typeof variantEntry[1] === 'object'
-        ? Object.entries(variantEntry[1] as Record<string, string>).map(([name, images]) => ({ name, images: String(images) }))
-        : []
-    );
 
     setIsProductModalOpen(true);
   };
@@ -1018,13 +1010,6 @@ const AdminDashboard = () => {
         : [newProdImage].filter(Boolean);
 
       const specifications: Record<string, Record<string, string>> = {};
-      // Persist colour variants as their own spec section so the detail page
-      // can swap the gallery when a different colour is picked.
-      const variantFields: Record<string, string> = {};
-      colorVariants.forEach((variant) => {
-        if (variant.name.trim() && variant.images.trim()) variantFields[variant.name.trim()] = variant.images.trim();
-      });
-      if (Object.keys(variantFields).length > 0) specifications['COLOR VARIANTS'] = variantFields;
       specSections.forEach((sec) => {
         if (sec.title.trim()) {
           const fields: Record<string, string> = {};
@@ -2614,100 +2599,6 @@ const AdminDashboard = () => {
                   value={newProdGallery}
                   onChange={setNewProdGallery}
                 />
-              </div>
-
-              {/* ═══════════════════════════════════════════════════════
-                  COLOR VARIANTS — each colour has its own images
-              ═══════════════════════════════════════════════════════ */}
-              <div className="pt-6 border-t border-slate-200">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-orange-600" />
-                      Color Variants &amp; Images
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Add each colour of this product and its own photos. On the product page,
-                      picking a colour swaps the gallery to these images. Paste URLs or upload.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setColorVariants([...colorVariants, { name: '', images: '' }])}
-                    className="px-3 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-orange-400 hover:text-orange-600"
-                  >
-                    + Add colour
-                  </button>
-                </div>
-                <div className="mt-3 space-y-3">
-                  {colorVariants.map((variant, index) => {
-                    const urls = variant.images.split(',').map((s) => s.trim()).filter(Boolean);
-                    const update = (next: string) =>
-                      setColorVariants(colorVariants.map((v, i) => (i === index ? { ...v, images: next } : v)));
-                    const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-                      const files = Array.from(e.target.files || []);
-                      if (!files.length) return;
-                      try {
-                        const uploaded: string[] = [];
-                        for (const file of files) {
-                          const form = new FormData();
-                          form.append('file', file);
-                          form.append('folder', 'products_gallery');
-                          const res = await fetch('/api/upload', { method: 'POST', body: form });
-                          const data = await res.json();
-                          if (res.ok && data.url) uploaded.push(data.url);
-                        }
-                        update([...urls, ...uploaded].join(', '));
-                      } catch { /* ignore */ }
-                    };
-                    return (
-                      <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            value={variant.name}
-                            onChange={(e) =>
-                              setColorVariants(colorVariants.map((v, i) => (i === index ? { ...v, name: e.target.value } : v)))
-                            }
-                            placeholder="Colour name (e.g. Bottle Green)"
-                            className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs"
-                          />
-                          <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-orange-400">
-                            📤 Upload images
-                            <input type="file" accept="image/*" multiple onChange={upload} className="hidden" />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setColorVariants(colorVariants.filter((_, i) => i !== index))}
-                            className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"
-                            aria-label="Remove colour"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <textarea
-                          rows={2}
-                          value={variant.images}
-                          onChange={(e) => update(e.target.value)}
-                          placeholder="Or paste image URLs, comma separated"
-                          className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                        />
-                        {urls.length > 0 ? (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {urls.map((url, i) => (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img key={i} src={url} alt="" className="h-12 w-12 rounded-lg border border-slate-200 object-cover" />
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                  {colorVariants.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-slate-200 px-3 py-2 text-[11px] text-slate-400">
-                      No variants yet — the product uses its main gallery image and the Color filter value.
-                    </p>
-                  ) : null}
-                </div>
               </div>
 
               {/* ═══════════════════════════════════════════════════════

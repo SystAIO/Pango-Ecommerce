@@ -1,0 +1,85 @@
+/**
+ * Quick Shop tiles are merchandising copy, not exact category names. Verify
+ * that clicking a tile always produces a catalogue URL for a category that
+ * actually exists in the navbar (live menu and the built-in fallback).
+ *
+ *   npx tsx scripts/test-quickshop.ts
+ */
+import {
+  DEFAULT_MENU,
+  quickShopHref,
+  resolveQuickShopCategory,
+  type NavbarMenu,
+} from "../../frontend/lib/navbar-menu";
+
+const LIVE_MENU: NavbarMenu = {
+  topwear: {
+    label: "Topwear",
+    columns: [
+      {
+        title: "T-Shirts",
+        items: [
+          "Plain T-Shirts",
+          "Printed T-Shirts",
+          "Sports T-Shirts",
+          "Regular Fit T-Shirts",
+          "Oversized T-Shirts",
+          "Polo T-Shirts",
+          "Full Sleeve T-Shirts",
+          "View All",
+        ],
+      },
+      {
+        title: "Essentials",
+        items: ["Hoodies", "Sweatshirts", "Jackets", "Co-ord Sets", "View All"],
+      },
+    ],
+  },
+  bottomwear: {
+    label: "Bottomwear",
+    columns: [
+      { title: "Bottoms", items: ["Trousers", "Pants", "Joggers", "Trackpants", "Boxers", "View All"] },
+    ],
+  },
+  links: [{ label: "Winterwear", href: "/winterwear" }],
+};
+
+let failures = 0;
+const check = (label: string, pass: boolean, detail = "") => {
+  console.log(`  ${pass ? "OK  " : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+  if (!pass) failures += 1;
+};
+
+const expectCategory = (menu: NavbarMenu, tile: string, expected: string) => {
+  const got = resolveQuickShopCategory(tile, menu);
+  check(`"${tile}" → ${expected}`, got === expected, `got ${got ?? "nothing"}`);
+  const href = quickShopHref(tile, "", menu);
+  check(`  link is filtered by that category`, href.startsWith("/product-page?category="), href);
+};
+
+console.log("\nlive navbar menu");
+expectCategory(LIVE_MENU, "Polo Tshirts", "Polo T-Shirts");
+expectCategory(LIVE_MENU, "Lowers", "Trousers");
+expectCategory(LIVE_MENU, "Jackets", "Jackets");
+expectCategory(LIVE_MENU, "Round Neck", "Plain T-Shirts");
+
+console.log("\nbuilt-in fallback menu");
+expectCategory(DEFAULT_MENU, "Polo Tshirts", "Polo T-Shirts");
+expectCategory(DEFAULT_MENU, "Lowers", "Trousers & Pants");
+expectCategory(DEFAULT_MENU, "Jackets", "Jackets");
+expectCategory(DEFAULT_MENU, "Round Neck", "Plain T-Shirts");
+expectCategory(DEFAULT_MENU, "Full Sleeves", "Full Sleeve T-Shirts");
+
+console.log("\nnon-category tiles keep their own link");
+check(
+  "New Arrivals → /new-arrivals",
+  quickShopHref("New Arrivals", "/new-arrivals", LIVE_MENU) === "/new-arrivals"
+);
+check("blank label and link → catalogue", quickShopHref("", "", LIVE_MENU) === "/product-page");
+check(
+  "javascript: link is rejected",
+  quickShopHref("Custom", "javascript:alert(1)", LIVE_MENU) === "/product-page"
+);
+
+console.log(`\n${failures === 0 ? "QUICK SHOP OK" : `${failures} FAILED`}`);
+process.exit(failures === 0 ? 0 : 1);

@@ -228,3 +228,107 @@ export function menuCategories(
   }
   return out;
 }
+
+/* ── Quick shop tiles ───────────────────────────────────────────────────── */
+
+function compactLabel(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** "Trousers" and "trousers" → "trouser", so singular/plural labels still match. */
+function stemLabel(value: string): string {
+  const compact = compactLabel(value);
+  return compact.length > 3 && compact.endsWith("s") ? compact.slice(0, -1) : compact;
+}
+
+function labelWords(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3)
+    .map(stemLabel);
+}
+
+function findCategory(label: string, categories: string[]): string | null {
+  const key = compactLabel(label);
+  if (!key) return null;
+  const exact = categories.find((category) => compactLabel(category) === key);
+  if (exact) return exact;
+  const stem = stemLabel(label);
+  return categories.find((category) => stemLabel(category) === stem) ?? null;
+}
+
+/**
+ * Retail shorthand that does not literally appear in the navbar. Keys and
+ * values are compared in compact form, so "Polo Tshirts" matches a navbar
+ * category named "Polo T-Shirts".
+ */
+const QUICK_SHOP_ALIASES: Record<string, string[]> = {
+  lower: ["Trousers", "Pants", "Trackpants", "Joggers", "Bottomwear"],
+  lowers: ["Trousers", "Pants", "Trackpants", "Joggers", "Bottomwear"],
+  bottom: ["Trousers", "Pants", "Bottomwear"],
+  bottoms: ["Trousers", "Pants", "Bottomwear"],
+  roundneck: ["Plain T-Shirts", "Regular Fit T-Shirts", "T-Shirts"],
+  crewneck: ["Plain T-Shirts", "Regular Fit T-Shirts", "T-Shirts"],
+  polo: ["Polo T-Shirts"],
+  polotshirts: ["Polo T-Shirts"],
+  cargo: ["Cargo Pants", "Joggers"],
+  cargopants: ["Cargo Pants", "Joggers"],
+  jeans: ["Jeans"],
+  jacket: ["Jackets"],
+  hoodie: ["Hoodies"],
+  sweatshirt: ["Sweatshirts"],
+  shirt: ["Shirts", "Plain Shirts", "Plain T-Shirts"],
+  shirts: ["Shirts", "Plain Shirts", "Plain T-Shirts"],
+  tshirt: ["T-Shirts", "Plain T-Shirts"],
+  tshirts: ["T-Shirts", "Plain T-Shirts"],
+  fullsleeves: ["Full Sleeve T-Shirts"],
+  trackpants: ["Trackpants", "Joggers"],
+  tracks: ["Trackpants", "Joggers"],
+};
+
+/**
+ * Matches a Quick Shop tile label to a category that actually exists in the
+ * (admin-editable) navbar. Merchandising copy drifts — "Polo Tshirts" vs
+ * "Polo T-Shirts", "Lowers" vs "Trousers" — so an exact string match is not
+ * enough. Falls back to shared words ("Full Sleeves" → "Full Sleeve T-Shirts").
+ */
+export function resolveQuickShopCategory(label: string, menu: NavbarMenu): string | null {
+  const categories = menuCategories(menu);
+  if (categories.length === 0) return null;
+
+  const direct = findCategory(label, categories);
+  if (direct) return direct;
+
+  for (const alias of QUICK_SHOP_ALIASES[compactLabel(label)] ?? []) {
+    const hit =
+      findCategory(alias, categories) ??
+      categories.find((category) => compactLabel(category).startsWith(compactLabel(alias)));
+    if (hit) return hit;
+  }
+
+  const words = labelWords(label);
+  if (words.length > 0) {
+    let best: { category: string; score: number } | null = null;
+    for (const category of categories) {
+      const categoryWords = labelWords(category);
+      const score = words.reduce((n, word) => n + (categoryWords.includes(word) ? 1 : 0), 0);
+      if (score > 0 && (!best || score > best.score)) best = { category, score };
+    }
+    if (best) return best.category;
+  }
+  return null;
+}
+
+/**
+ * Where a Quick Shop tile should go. The label is resolved against the live
+ * navbar first, so a stale/empty `href` saved in Admin can never send a shopper
+ * to the wrong (or an empty) category. The configured link is kept only for
+ * tiles that are not a navbar category at all (e.g. "New Arrivals").
+ */
+export function quickShopHref(label: string, href: string, menu: NavbarMenu): string {
+  const category = resolveQuickShopCategory(label, menu);
+  if (category) return menuItemHref(category);
+  const link = String(href ?? "").trim();
+  return link.startsWith("/") && !link.startsWith("//") ? link : "/product-page";
+}

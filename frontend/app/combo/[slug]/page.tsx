@@ -315,11 +315,6 @@ export default function ComboDetailPage() {
               <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-teal-600" />Assured Refund</span>
             </div>
 
-            <div className="mt-5">
-              <p className="text-xs font-bold">Save Extra With Offers</p>
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-3 text-xs"><span className="rounded bg-amber-100 px-2 py-1 font-bold text-amber-800">EMI</span> or <span className="font-bold">₹533/month (3 months)</span> via Pay Later</div>
-            </div>
-
             <div className="mt-6 border-t border-stone-200">
               <Accordion title="Product Details" defaultOpen>
                 <table className="w-full text-[13px]"><tbody>
