@@ -66,6 +66,22 @@ function quoteIdent(name: string): string {
   return `"${String(name).replace(/"/g, '""')}"`;
 }
 
+/**
+ * `pg` sends JS arrays as Postgres array literals (`{"a","b"}`), but every
+ * structured column/argument in this schema is `json`/`jsonb`, which needs
+ * JSON (`["a","b"]`). Postgres rejects the array literal with `22P02`, so
+ * stringify those values before binding them. Scalars, Dates and Buffers are
+ * left to `pg` so numeric/boolean/uuid/timestamptz parameters keep their
+ * native handling.
+ */
+export function jsonValue(value: any): any {
+  if (value === null || value === undefined) return null;
+  const isArray = Array.isArray(value);
+  const isPlainObject =
+    typeof value === "object" && (value.constructor === Object || value.constructor === undefined);
+  return isArray || isPlainObject ? JSON.stringify(value) : value;
+}
+
 type Filter =
   | { kind: "eq" | "neq" | "gt"; column: string; value: any }
   | { kind: "in"; column: string; value: any[] }
@@ -270,7 +286,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
         if (!rows.length) return { data: [], error: null };
         const keys = [...new Set(rows.flatMap((r) => Object.keys(r ?? {})))];
         const columns = keys.map(quoteIdent).join(", ");
-        const values = rows.map((row) => `(${keys.map((k) => this.param(row[k] ?? null)).join(", ")})`).join(", ");
+        const values = rows.map((row) => `(${keys.map((k) => this.param(jsonValue(row[k] ?? null))).join(", ")})`).join(", ");
         let sql = `INSERT INTO ${table} (${columns}) VALUES ${values}`;
         if (this.operation === "upsert" && this.upsertKey) {
           const updates = keys.filter((k) => k !== this.upsertKey).map((k) => `${quoteIdent(k)} = EXCLUDED.${quoteIdent(k)}`);
@@ -290,7 +306,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
           const values = this.payload ?? {};
           const keys = Object.keys(values);
           if (!keys.length) return { data: [], error: null };
-          const set = keys.map((k) => `${quoteIdent(k)} = ${this.param(values[k])}`).join(", ");
+          const set = keys.map((k) => `${quoteIdent(k)} = ${this.param(jsonValue(values[k]))}`).join(", ");
           sql = `UPDATE ${table} SET ${set}${this.whereClause("")}`;
         } else {
           sql = `DELETE FROM ${table}${this.whereClause("")}`;
@@ -376,7 +392,8 @@ const client: DatabaseClient = {
       const placeholders = argsInfo.map((arg) => {
         const value = args[arg.name];
         if (value === undefined || value === null) return `NULL::${arg.type}`;
-        params.push(value);
+        // jsonb arguments (order lines, addresses) have the same array problem.
+        params.push(/\bjsonb?\b/i.test(arg.type) ? jsonValue(value) : value);
         i += 1;
         return `$${i}::${arg.type}`;
       });

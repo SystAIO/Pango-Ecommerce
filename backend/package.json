@@ -12,7 +12,8 @@
     "test:schema": "node scripts/test-schema.mjs",
     "test:catalogue": "node scripts/test-catalogue.mjs",
     "test:search": "tsx scripts/test-search.ts",
-    "test": "npm run test:schema && npm run test:catalogue && npm run test:search"
+    "test:json": "tsx scripts/test-json-params.ts",
+    "test": "npm run test:schema && npm run test:catalogue && npm run test:search && npm run test:json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1175.0",
