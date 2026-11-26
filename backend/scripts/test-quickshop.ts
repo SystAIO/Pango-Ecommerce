@@ -100,6 +100,15 @@ check(
   "ordinary category link is unchanged",
   menuItemHref("Plain T-Shirts") === "/product-page?category=Plain+T-Shirts"
 );
+check(
+  "View All in a men's column → men's collection",
+  menuItemHref("View All", "men") === "/product-page?gender=men"
+);
+check(
+  "men's category link carries the gender filter",
+  menuItemHref("Polo T-Shirts", "men") === "/product-page?gender=men&category=Polo+T-Shirts",
+  menuItemHref("Polo T-Shirts", "men")
+);
 
 console.log("\ngender-aware category picker");
 const womenCategories = menuCategories(LIVE_MENU, "women");

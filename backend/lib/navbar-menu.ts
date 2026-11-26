@@ -203,11 +203,12 @@ export function menuItemHref(item: string, gender?: "men" | "women"): string {
   const trimmed = item.trim();
   if (!trimmed) return "/product-page";
 
-  // Items under "Shop For Women" are navigation rows ("Topwear", "View All",
-  // …), but they must still narrow the catalogue to women's products instead
-  // of showing the entire store. A real category there is narrowed by both.
-  if (gender === "women") {
-    const qs = new URLSearchParams({ gender: "women" });
+  // Every menu column is gendered: "Shop For Women" shows women's products,
+  // T-Shirts / Essentials / Bottoms show the men's collection. Navigation rows
+  // ("View All", "Topwear", …) narrow by gender; real categories narrow by
+  // both gender and category, so the other collection never leaks in.
+  if (gender) {
+    const qs = new URLSearchParams({ gender });
     if (!isNavigationLabel(trimmed) && !isWomenLabel(trimmed)) qs.set("category", trimmed);
     return `/product-page?${qs.toString()}`;
   }

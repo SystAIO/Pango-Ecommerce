@@ -272,7 +272,7 @@ export default function Navbar() {
                               {col.items.map((item) => (
                                 <li key={item}>
                                   <Link
-                                    href={menuItemHref(item, women ? "women" : undefined)}
+                                    href={menuItemHref(item, women ? "women" : "men")}
                                     onClick={() => setActiveMenu(null)}
                                     className="text-sm text-stone-500 transition-colors hover:text-[#171512]"
                                   >
@@ -465,7 +465,7 @@ export default function Navbar() {
                                 {col.items.map((item) => (
                                   <li key={item}>
                                     <Link
-                                      href={menuItemHref(item, women ? "women" : undefined)}
+                                      href={menuItemHref(item, women ? "women" : "men")}
                                       onClick={() => setMobileOpen(false)}
                                       className="block rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm active:scale-[0.98]"
                                     >
