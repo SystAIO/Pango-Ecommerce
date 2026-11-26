@@ -2667,11 +2667,11 @@ const AdminDashboard = () => {
               <div className="pt-6 border-t border-slate-200">
                 <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Palette className="w-4 h-4 text-orange-600" />
-                  Color &amp; More Colors
+                  More Colors
                 </h4>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Pick the hex colour of this product, then add the hex of every other colour of the same style.
-                  Products in this category that share a hex are linked under <b>MORE COLORS</b> on the product page.
+                  Pick the hex colour of this product, then add the hex and name of every other colour of the same style.
+                  Products that share a hex appear together under <b>MORE COLORS</b> on the product page, where shoppers can click straight to each colour.
                 </p>
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">

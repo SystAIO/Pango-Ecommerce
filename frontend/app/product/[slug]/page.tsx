@@ -511,13 +511,49 @@ export default function ProductDetailPage() {
               </div>
             ) : null}
 
-            {/* Color selection — images change with the chosen color */}
-            {colorNames.length > 0 ? (
+            {/* More colors — each swatch opens that colourway's product */}
+            {moreColorProducts.length > 0 ? (
               <div className="mt-5">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
-                  Color{selectedColor ? ` (${selectedColor})` : ""}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">More Colors</p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <div className="flex flex-col items-center gap-1">
+                    <span
+                      className="h-12 w-12 rounded-lg border-2 border-orange-500 ring-2 ring-orange-100"
+                      style={{ backgroundColor: product.color?.hex || COLOR_HEX[(selectedColor || "").toLowerCase()] || "#d6d3d1" }}
+                    />
+                    <span className="max-w-[80px] truncate text-[10px] font-semibold text-slate-700">
+                      {product.color?.name || selectedColor || "This colour"}
+                    </span>
+                  </div>
+                  {moreColorProducts.map((item: any) => {
+                    const thumb = item.image_url || item.images?.[0];
+                    const name = item.color?.name || item.name;
+                    return (
+                      <Link
+                        key={item.slug}
+                        href={`/product/${item.slug}`}
+                        title={`View ${name}`}
+                        className="group flex flex-col items-center gap-1"
+                      >
+                        <span
+                          className="block h-12 w-12 overflow-hidden rounded-lg border-2 border-stone-300 transition-colors group-hover:border-orange-500"
+                          style={{ backgroundColor: item.color?.hex || "#d6d3d1" }}
+                        >
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt={name} className="h-full w-full object-cover object-top" />
+                          ) : null}
+                        </span>
+                        <span className="max-w-[80px] truncate text-[10px] font-semibold text-slate-500">{name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : colorNames.length > 0 ? (
+              <div className="mt-5">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">More Colors</p>
+                <div className="mt-2 flex flex-wrap gap-3">
                   {colorNames.map((name) => {
                     const variant = variants.find((v) => v.name === name);
                     const thumb = variant?.images?.[0];
@@ -529,13 +565,18 @@ export default function ProductDetailPage() {
                         onClick={() => pickColor(name)}
                         title={name}
                         aria-pressed={active}
-                        className={`h-12 w-12 overflow-hidden rounded-lg border-2 bg-stone-100 ${active ? "border-orange-500 ring-2 ring-orange-100" : "border-stone-300"}`}
-                        style={!thumb ? { backgroundColor: COLOR_HEX[name.toLowerCase()] ?? "#d6d3d1" } : undefined}
+                        className="flex flex-col items-center gap-1"
                       >
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={name} className="h-full w-full object-cover object-top" />
-                        ) : null}
+                        <span
+                          className={`h-12 w-12 overflow-hidden rounded-lg border-2 bg-stone-100 ${active ? "border-orange-500 ring-2 ring-orange-100" : "border-stone-300"}`}
+                          style={!thumb ? { backgroundColor: COLOR_HEX[name.toLowerCase()] ?? "#d6d3d1" } : undefined}
+                        >
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt={name} className="h-full w-full object-cover object-top" />
+                          ) : null}
+                        </span>
+                        <span className="max-w-[80px] truncate text-[10px] font-semibold text-slate-500">{name}</span>
                       </button>
                     );
                   })}
