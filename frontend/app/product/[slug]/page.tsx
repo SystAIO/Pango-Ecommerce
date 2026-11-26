@@ -17,6 +17,7 @@ import { inr } from "@/lib/site";
 import type { SizeGuideRow } from "@/lib/catalog-config";
 import { DEFAULT_CATALOG_CONFIG } from "@/lib/catalog-config";
 import { productGender } from "@/lib/gender";
+import { findMoreColorProducts } from "@/lib/product-shape";
 
 type ColorVariant = { name: string; images: string[] };
 
@@ -290,6 +291,12 @@ export default function ProductDetailPage() {
     const others = allProducts.filter((p) => p.slug !== slug);
     return [...others.filter((p) => p.category === product?.category), ...others.filter((p) => p.category !== product?.category)].slice(0, 5);
   }, [allProducts, product?.category, slug]);
+
+  // Other colourways of this style, wired up by the hex codes set in Admin.
+  const moreColorProducts = useMemo(
+    () => (product ? findMoreColorProducts(product, allProducts).slice(0, 12) : []),
+    [allProducts, product]
+  );
 
   const pickColor = (name: string) => {
     setSelectedColor(name);
@@ -629,6 +636,37 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* More colours — other colourways of the same style (Myntra-style) */}
+        {moreColorProducts.length > 0 ? (
+          <section className="mt-12">
+            <h2 className="mb-5 text-lg font-black uppercase tracking-wide text-[#171512]">More Colors</h2>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-6">
+              {moreColorProducts.map((item: any) => (
+                <Link key={item.slug} href={`/product/${item.slug}`} className="group">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-stone-100 ring-1 ring-stone-200 transition-all group-hover:ring-2 group-hover:ring-orange-500">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image_url || item.images?.[0] || "/product-placeholder.svg"}
+                      alt={item.name}
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                    />
+                    {item.color?.hex ? (
+                      <span
+                        className="absolute bottom-2 left-2 h-4 w-4 rounded-full border-2 border-white shadow"
+                        style={{ backgroundColor: item.color.hex }}
+                        aria-hidden
+                      />
+                    ) : null}
+                  </div>
+                  <p className="mt-2 line-clamp-1 text-[11px] font-semibold text-slate-800">
+                    {item.color?.name || item.name}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* Trust badges */}
         <section className="mt-16 flex flex-wrap items-center justify-around gap-6 border-y border-stone-100 py-8">

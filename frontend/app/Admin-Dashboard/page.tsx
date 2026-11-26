@@ -4,11 +4,11 @@ import {
   Users, Package, BarChart3, Settings, LogOut,
   Bell, Menu, Trash2, Edit, DollarSign, TrendingUp, Check, X, ShieldCheck, ShieldOff,
   Search, ExternalLink, Plus, RefreshCw, LayoutGrid, List, Sparkles, Image as ImageIcon, Tag,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal, Layers, Truck, Star, RotateCcw
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal, Layers, Truck, Star, RotateCcw, Palette
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND_GRID, DEFAULT_BRANDS } from '@/lib/catalog';
-import type { ProductCoupon } from '@/lib/product-shape';
+import { normaliseProductColor, type ProductColor, type ProductCoupon } from '@/lib/product-shape';
 import { productGender } from '@/lib/gender';
 import { DEFAULT_MENU, menuCategories, type NavbarMenu, type NavbarMenuSection, type NavbarMenuLink } from '@/lib/navbar-menu';
 import Link from 'next/link';
@@ -48,6 +48,8 @@ interface Product {
   description_intro?: string;
   specifications?: Record<string, Record<string, string>> | string;
   coupon?: ProductCoupon | null;
+  color?: ProductColor | null;
+  moreColors?: ProductColor[];
   created_at?: string;
 }
 
@@ -64,6 +66,10 @@ type CouponDraft = {
 const EMPTY_COUPON: CouponDraft = {
   code: '', label: '', description: '', minOrder: '', value: '', kind: 'flat', active: false,
 };
+
+const colorInputValue = (hex: string) => (/^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#000000');
+const normaliseColorDraft = (colour: ProductColor): ProductColor =>
+  normaliseProductColor(colour) ?? { ...colour, hex: '#000000' };
 
 interface SpecItem {
   key: string;
@@ -725,6 +731,8 @@ const AdminDashboard = () => {
   const [newProdGallery, setNewProdGallery] = useState('');
   const [newProdIntro, setNewProdIntro] = useState('');
   const [newProdCoupon, setNewProdCoupon] = useState<CouponDraft>({ ...EMPTY_COUPON });
+  const [newProdColor, setNewProdColor] = useState<ProductColor>({ name: '', hex: '#000000' });
+  const [newProdMoreColors, setNewProdMoreColors] = useState<ProductColor[]>([]);
   const [notification, setNotification] = useState('');
 
   const [specSections, setSpecSections] = useState<SpecSection[]>(() => topwearSpecs('men'));
@@ -936,6 +944,8 @@ const AdminDashboard = () => {
     setNewProdGallery('');
     setNewProdIntro('');
     setNewProdCoupon({ ...EMPTY_COUPON });
+    setNewProdColor({ name: '', hex: '#000000' });
+    setNewProdMoreColors([]);
     setSpecSections(topwearSpecs('men'));
     setIsProductModalOpen(true);
   };
@@ -993,6 +1003,8 @@ const AdminDashboard = () => {
       kind: productCoupon.kind,
       active: productCoupon.active,
     } : { ...EMPTY_COUPON });
+    setNewProdColor(p.color ? { ...p.color } : { name: '', hex: '#000000' });
+    setNewProdMoreColors((p.moreColors ?? []).map((c) => ({ ...c })));
 
     // Parse specifications into SpecSection array
     let rawSpecs = p.specifications;
@@ -1008,7 +1020,11 @@ const AdminDashboard = () => {
       // General products have no per-colour galleries; drop any legacy
       // "COLOR VARIANTS" section instead of surfacing it as a normal spec.
       const parsedSections: SpecSection[] = Object.entries(rawSpecs)
-        .filter(([title]) => !title.toLowerCase().includes('color variant') && !title.toLowerCase().includes('product coupon'))
+        .filter(([title]) => {
+          const key = title.toLowerCase();
+          return !key.includes('color variant') && !key.includes('product coupon') &&
+            key !== 'product color' && key !== 'more colors';
+        })
         .map(([secTitle, fields]) => ({
           title: secTitle,
           items:
@@ -1085,6 +1101,8 @@ const AdminDashboard = () => {
             images: galleryArray,
             description_intro: newProdIntro,
             coupon: couponPayload,
+            color: newProdColor.hex ? newProdColor : null,
+            moreColors: newProdMoreColors,
             specifications:
               Object.keys(specifications).length > 0
                 ? specifications
@@ -1118,6 +1136,8 @@ const AdminDashboard = () => {
             images: galleryArray,
             description_intro: newProdIntro,
             coupon: couponPayload,
+            color: newProdColor.hex ? newProdColor : null,
+            moreColors: newProdMoreColors,
             specifications:
               Object.keys(specifications).length > 0
                 ? specifications
@@ -2639,6 +2659,94 @@ const AdminDashboard = () => {
                   value={newProdGallery}
                   onChange={setNewProdGallery}
                 />
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════
+                  COLOR & HEX — links colourways of the same style
+              ═══════════════════════════════════════════════════════ */}
+              <div className="pt-6 border-t border-slate-200">
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-orange-600" />
+                  Color &amp; More Colors
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Pick the hex colour of this product, then add the hex of every other colour of the same style.
+                  Products in this category that share a hex are linked under <b>MORE COLORS</b> on the product page.
+                </p>
+
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-500">This colour</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      type="color"
+                      value={colorInputValue(newProdColor.hex)}
+                      onChange={(e) => setNewProdColor({ ...newProdColor, hex: e.target.value.toUpperCase() })}
+                      aria-label="Choose this product's colour"
+                      className="h-10 w-12 cursor-pointer rounded border border-slate-200 bg-white"
+                    />
+                    <input
+                      value={newProdColor.hex}
+                      onChange={(e) => setNewProdColor({ ...newProdColor, hex: e.target.value })}
+                      onBlur={() => setNewProdColor((c) => normaliseColorDraft(c))}
+                      placeholder="#C1121F"
+                      aria-label="Hex code"
+                      className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono uppercase text-slate-800 outline-none focus:border-orange-500"
+                    />
+                    <input
+                      value={newProdColor.name}
+                      onChange={(e) => setNewProdColor({ ...newProdColor, name: e.target.value })}
+                      placeholder="Colour name (e.g. Red)"
+                      aria-label="Colour name"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {newProdMoreColors.map((colour, index) => (
+                    <div key={index} className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="color"
+                        value={colorInputValue(colour.hex)}
+                        onChange={(e) => setNewProdMoreColors((prev) => prev.map((c, i) => (i === index ? { ...c, hex: e.target.value.toUpperCase() } : c)))}
+                        aria-label={`Choose colour ${index + 1}`}
+                        className="h-10 w-12 cursor-pointer rounded border border-slate-200 bg-white"
+                      />
+                      <input
+                        value={colour.hex}
+                        onChange={(e) => setNewProdMoreColors((prev) => prev.map((c, i) => (i === index ? { ...c, hex: e.target.value } : c)))}
+                        onBlur={() => setNewProdMoreColors((prev) => prev.map((c, i) => (i === index ? normaliseColorDraft(c) : c)))}
+                        placeholder="#2A9D8F"
+                        aria-label={`Hex code ${index + 1}`}
+                        className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono uppercase text-slate-800 outline-none focus:border-orange-500"
+                      />
+                      <input
+                        value={colour.name}
+                        onChange={(e) => setNewProdMoreColors((prev) => prev.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))}
+                        placeholder="Other colour (e.g. Green)"
+                        aria-label={`Colour name ${index + 1}`}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-orange-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewProdMoreColors((prev) => prev.filter((_, i) => i !== index))}
+                        aria-label="Remove colour"
+                        className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {newProdMoreColors.length < 12 ? (
+                    <button
+                      type="button"
+                      onClick={() => setNewProdMoreColors([...newProdMoreColors, { name: '', hex: '#000000' }])}
+                      className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-orange-400 hover:text-orange-600"
+                    >
+                      + Add another colour
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               {/* ═══════════════════════════════════════════════════════

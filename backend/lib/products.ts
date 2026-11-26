@@ -16,7 +16,11 @@ import { db } from "./db";
 import { productGender } from "./gender";
 import { asRow, asRows, json, num } from "./supabase";
 import {
+  normaliseMoreColors,
+  normaliseProductColor,
   normaliseProductCoupon,
+  MORE_COLORS_KEY,
+  PRODUCT_COLOR_KEY,
   PRODUCT_COUPON_KEY,
   toProduct,
   toProducts,
@@ -143,9 +147,14 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
   // A product's own coupon is kept in a reserved spec section: the products
   // table already has a jsonb column for specifications, so no migration (and
   // no second API/store) is needed. Any stale reserved key is replaced.
+  const reserved = new Set([
+    PRODUCT_COUPON_KEY.toLowerCase(),
+    PRODUCT_COLOR_KEY.toLowerCase(),
+    MORE_COLORS_KEY.toLowerCase(),
+  ]);
   const specifications: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(json<Record<string, unknown>>(body.specifications, {}))) {
-    if (key.toLowerCase() !== PRODUCT_COUPON_KEY.toLowerCase()) specifications[key] = value;
+    if (!reserved.has(key.toLowerCase())) specifications[key] = value;
   }
   const coupon = normaliseProductCoupon(body.coupon);
   if (coupon) {
@@ -159,6 +168,10 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
       active: String(coupon.active),
     };
   }
+  const color = normaliseProductColor(body.color);
+  if (color) specifications[PRODUCT_COLOR_KEY] = { name: color.name, hex: color.hex };
+  const moreColors = normaliseMoreColors(body.moreColors);
+  if (moreColors.length) specifications[MORE_COLORS_KEY] = moreColors;
 
   return {
     name: String(body.name ?? "").trim(),

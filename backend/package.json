@@ -15,7 +15,8 @@
     "test:json": "tsx scripts/test-json-params.ts",
     "test:quickshop": "tsx scripts/test-quickshop.ts",
     "test:product-coupon": "tsx scripts/test-product-coupon.ts",
-    "test": "npm run test:schema && npm run test:catalogue && npm run test:search && npm run test:json && npm run test:quickshop && npm run test:product-coupon"
+    "test:product-colors": "tsx scripts/test-product-colors.ts",
+    "test": "npm run test:schema && npm run test:catalogue && npm run test:search && npm run test:json && npm run test:quickshop && npm run test:product-coupon && npm run test:product-colors"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1175.0",

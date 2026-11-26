@@ -34,6 +34,9 @@ export type Product = {
   bundle_slugs: string[];
   /** Set per product in Admin → Product Management; overrides the global coupons. */
   coupon: ProductCoupon | null;
+  /** Primary colourway and sibling colours used by the "MORE COLORS" rail. */
+  color: ProductColor | null;
+  moreColors: ProductColor[];
   created_at: string;
 };
 
@@ -54,9 +57,73 @@ export type ProductCoupon = {
 /** Reserved spec section: coupons live in the existing jsonb column, no migration needed. */
 export const PRODUCT_COUPON_KEY = "PRODUCT COUPON";
 
+/** A colourway: display name plus the hex code that links sibling products. */
+export type ProductColor = { name: string; hex: string };
+
+/** Reserved spec sections: colour data lives in the products jsonb column. */
+export const PRODUCT_COLOR_KEY = "PRODUCT COLOR";
+export const MORE_COLORS_KEY = "MORE COLORS";
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Accepts #RRGGBB, #RGB and RRGGBB; always returns upper-case #RRGGBB. */
+export function normaliseHex(value: unknown): string {
+  const raw = String(value ?? "").trim().replace(/^#/, "");
+  if (/^[0-9a-f]{6}$/i.test(raw)) return `#${raw.toUpperCase()}`;
+  if (/^[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw[0]}${raw[0]}${raw[1]}${raw[1]}${raw[2]}${raw[2]}`.toUpperCase();
+  }
+  return "";
+}
+
+export function normaliseProductColor(value: unknown): ProductColor | null {
+  const colour = asRecord(value);
+  if (!colour) return null;
+  const hex = normaliseHex(colour.hex);
+  if (!hex) return null;
+  return { name: String(colour.name ?? "").trim().slice(0, 40) || hex, hex };
+}
+
+export function normaliseMoreColors(value: unknown): ProductColor[] {
+  let raw: unknown[] = [];
+  if (Array.isArray(value)) raw = value;
+  else if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) raw = parsed;
+    } catch {
+      raw = [];
+    }
+  }
+  const seen = new Set<string>();
+  const colours: ProductColor[] = [];
+  for (const entry of raw.slice(0, 12)) {
+    const colour = normaliseProductColor(entry);
+    if (!colour || seen.has(colour.hex)) continue;
+    seen.add(colour.hex);
+    colours.push(colour);
+  }
+  return colours;
+}
+
 export function normaliseProductCoupon(value: unknown): ProductCoupon | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const coupon = value as Record<string, unknown>;
+  const coupon = asRecord(value);
+  if (!coupon) return null;
   const code = String(coupon.code ?? "").trim().toUpperCase().slice(0, 40);
   const amount = Number(coupon.value) || 0;
   if (!code || amount <= 0) return null;
@@ -92,6 +159,17 @@ export function toProduct(row: ProductRow): Product {
   const coupon = couponEntry ? normaliseProductCoupon(couponEntry[1]) : null;
   if (couponEntry) delete specifications[couponEntry[0]];
 
+  const colourEntry = Object.entries(specifications).find(
+    ([title]) => title.toLowerCase() === PRODUCT_COLOR_KEY.toLowerCase()
+  );
+  const moreColoursEntry = Object.entries(specifications).find(
+    ([title]) => title.toLowerCase() === MORE_COLORS_KEY.toLowerCase()
+  );
+  const color = colourEntry ? normaliseProductColor(colourEntry[1]) : null;
+  const moreColors = moreColoursEntry ? normaliseMoreColors(moreColoursEntry[1]) : [];
+  if (colourEntry) delete specifications[colourEntry[0]];
+  if (moreColoursEntry) delete specifications[moreColoursEntry[0]];
+
   return {
     id: num(row.id),
     name: String(row.name ?? ""),
@@ -117,6 +195,8 @@ export function toProduct(row: ProductRow): Product {
     deal_ends_at: (row.deal_ends_at as string) ?? null,
     bundle_slugs: json<string[]>(row.bundle_slugs, []),
     coupon,
+    color,
+    moreColors,
     created_at: String(row.created_at ?? ""),
   };
 }
@@ -124,4 +204,31 @@ export function toProduct(row: ProductRow): Product {
 /** Maps a row set. */
 export function toProducts(rows: ProductRow[] | null): Product[] {
   return (rows ?? []).map(toProduct);
+}
+
+/**
+ * Other colourways of the same product (Myntra's "MORE COLORS" strip).
+ *
+ * Products are separate catalogue rows. Two rows are treated as colourways of
+ * one product when they are in the same category and either shares a hex code
+ * with the other (the admin enters the sibling's hex in "More colours"), or
+ * both carry the same primary hex. Matching is deliberately bidirectional.
+ */
+export function findMoreColorProducts(product: Product, products: Product[]): Product[] {
+  const category = String(product.category ?? "").trim().toLowerCase();
+  const own = [product.color?.hex, ...product.moreColors.map((c) => c.hex)]
+    .filter((hex): hex is string => Boolean(hex))
+    .map((hex) => hex.toUpperCase());
+  if (!category || own.length === 0) return [];
+
+  const ownSet = new Set(own);
+  return products.filter((candidate) => {
+    if (candidate.slug === product.slug) return false;
+    if (String(candidate.category ?? "").trim().toLowerCase() !== category) return false;
+    const hexes = [
+      candidate.color?.hex,
+      ...candidate.moreColors.map((c) => c.hex),
+    ].filter((hex): hex is string => Boolean(hex)).map((hex) => hex.toUpperCase());
+    return hexes.some((hex) => ownSet.has(hex));
+  });
 }
