@@ -359,9 +359,36 @@ export function resolveQuickShopCategory(label: string, menu: NavbarMenu): strin
  * to the wrong (or an empty) category. The configured link is kept only for
  * tiles that are not a navbar category at all (e.g. "New Arrivals").
  */
+/** Keeps a gender set in Admin's custom link (e.g. Shop For Women tiles). */
+function genderFromHref(href: string): "men" | "women" | undefined {
+  try {
+    const gender = new URL(String(href ?? ""), "http://localhost").searchParams.get("gender");
+    return gender === "women" || gender === "men" ? gender : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isWomenCategory(category: string, menu: NavbarMenu): boolean {
+  const key = compactLabel(category);
+  if (WOMEN_CATEGORIES.some((item) => compactLabel(item) === key)) return true;
+  return [menu.topwear, menu.bottomwear].some((section) =>
+    section.columns.some(
+      (column) =>
+        isWomenLabel(column.title) && column.items.some((item) => compactLabel(item) === key)
+    )
+  );
+}
+
 export function quickShopHref(label: string, href: string, menu: NavbarMenu): string {
   const category = resolveQuickShopCategory(label, menu);
-  if (category) return menuItemHref(category);
+  if (category) {
+    const qs = new URLSearchParams();
+    const gender = genderFromHref(href) ?? (isWomenCategory(category, menu) ? "women" : undefined);
+    if (gender) qs.set("gender", gender);
+    qs.set("category", category);
+    return `/product-page?${qs.toString()}`;
+  }
   const link = String(href ?? "").trim();
   return link.startsWith("/") && !link.startsWith("//") ? link : "/product-page";
 }

@@ -82,6 +82,19 @@ check(
   "javascript: link is rejected",
   quickShopHref("Custom", "javascript:alert(1)", LIVE_MENU) === "/product-page"
 );
+check(
+  "Co-Ord Set keeps the women gender from its configured link",
+  quickShopHref(
+    "Co-Ord Set",
+    "https://www.pangoapparels.com/product-page?gender=women&category=Co-ord+Sets",
+    LIVE_MENU
+  ) === "/product-page?gender=women&category=Co-ord+Sets",
+  quickShopHref("Co-Ord Set", "https://www.pangoapparels.com/product-page?gender=women&category=Co-ord+Sets", LIVE_MENU)
+);
+check(
+  "a women-only category defaults to women without a gender in the link",
+  quickShopHref("Co-Ord Set", "", LIVE_MENU) === "/product-page?gender=women&category=Co-ord+Sets"
+);
 
 console.log("\nShop For Women menu links");
 check(
