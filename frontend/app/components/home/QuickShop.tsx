@@ -30,12 +30,14 @@ export default function QuickShop({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+      {/* Flex tiles grow to fill the row and centre on the last line, so a
+          short list never leaves a big empty gap on one side. */}
+      <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
         {quickShop.items.map((item, index) => (
           <Link
             key={index}
             href={quickShopHref(item.label, item.href, menu)}
-            className="group flex animate-scale-in flex-col"
+            className="group flex min-w-[140px] max-w-[260px] flex-1 animate-scale-in flex-col"
             style={{ animationDelay: `${index * 70}ms` }}
           >
             <span className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-stone-100 ring-1 ring-stone-200 transition-all duration-300 group-hover:ring-2 group-hover:ring-orange-500">
