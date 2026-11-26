@@ -155,6 +155,14 @@ function CatalogueContent() {
   const searchParam = searchParams.get("search") ?? "";
   const genderParam = searchParams.get("gender") ?? "";
   const isWomen = genderParam === "women";
+  // This catalogue is branded "Men's Collection". Unless a shopper came from
+  // Shop For Women (or is searching the whole store), show men's products only —
+  // otherwise women's items appear under the men's heading.
+  const effectiveGender: "men" | "women" | undefined = isWomen
+    ? "women"
+    : searchParam
+      ? undefined
+      : "men";
 
   const [config, setConfig] = useState<CatalogConfig>(DEFAULT_CATALOG_CONFIG);
   const [products, setProducts] = useState<Product[]>([]);
@@ -177,14 +185,14 @@ function CatalogueContent() {
     if (categoryParam) params.set("category", categoryParam);
     if (brandParam) params.set("brand", brandParam);
     if (searchParam) params.set("search", searchParam);
-    if (isWomen) params.set("gender", "women");
+    if (effectiveGender) params.set("gender", effectiveGender);
     setLoading(true);
     fetch(`/api/products?${params}`)
       .then((r) => (r.ok ? r.json() : { products: [] }))
       .then((data: { products?: Product[] }) => setProducts(data.products ?? []))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [categoryParam, brandParam, searchParam, isWomen]);
+  }, [categoryParam, brandParam, searchParam, effectiveGender]);
 
   const groups = useMemo(() => config.groups.filter((g) => g.enabled), [config.groups]);
 
