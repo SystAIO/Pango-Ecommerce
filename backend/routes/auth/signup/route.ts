@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { db } from "../../../lib/db";
-import { generateToken } from "../../../lib/auth";
+import { generateToken, nameFromEmail } from "../../../lib/auth";
 import { describeError, num } from "../../../lib/supabase";
 import { issueAuthToken } from "../../../lib/auth-tokens";
 import { sendVerificationEmail } from "../../../lib/email";
@@ -12,13 +12,15 @@ async function handlePOST(req: Request, res: Response) {
   try {
     const { name, email, password, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email, and password are required" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
     // Supabase/PostgREST matches `eq` case-sensitively, so normalise here rather
     // than letting Bob@example.com and bob@example.com become two accounts.
     const normalisedEmail = String(email).trim().toLowerCase();
+    // The email is the source of truth for the display name.
+    const displayName = String(name ?? "").trim() || nameFromEmail(normalisedEmail);
 
     const existing = await db()
       .from("users")
@@ -43,7 +45,7 @@ async function handlePOST(req: Request, res: Response) {
 
     const created = await db()
       .from("users")
-      .insert({ name, email: normalisedEmail, password: hashedPassword, role: userRole })
+      .insert({ name: displayName, email: normalisedEmail, password: hashedPassword, role: userRole })
       .select("id")
       .single();
 
@@ -56,7 +58,7 @@ async function handlePOST(req: Request, res: Response) {
     await db().from("user_auth_meta").insert({ user_id: userId, email_verified: false });
     try {
       const verificationToken = await issueAuthToken(userId, "verify", 24);
-      await sendVerificationEmail(normalisedEmail, String(name), verificationToken);
+      await sendVerificationEmail(normalisedEmail, displayName, verificationToken);
     } catch (mailError) {
       // Account creation must still succeed if mail is temporarily down.
       console.error("Verification email could not be sent:", mailError);
@@ -72,7 +74,7 @@ async function handlePOST(req: Request, res: Response) {
 
     return res.json({
       message: "Account created successfully",
-      user: { id: userId, name, email: normalisedEmail, role: userRole },
+      user: { id: userId, name: displayName, email: normalisedEmail, role: userRole },
       token,
       requiresVerification: true,
     });

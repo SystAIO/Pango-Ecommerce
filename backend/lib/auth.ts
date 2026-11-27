@@ -3,6 +3,18 @@ import { db } from "./db";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this-in-production";
 
+/** Friendly display name from the email local part (e.g. rahul.kumar@x.com → Rahul Kumar). */
+export function nameFromEmail(email: string): string {
+  const local = String(email ?? "").split("@")[0] || "Customer";
+  const name = local
+    .split(/[._+\-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .slice(0, 80);
+  return name || "Customer";
+}
+
 export function generateToken(userId: number, role: string): string {
   return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }

@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { db } from "../../../../lib/db";
-import { generateToken } from "../../../../lib/auth";
+import { generateToken, nameFromEmail } from "../../../../lib/auth";
 import { num } from "../../../../lib/supabase";
 import { exchangeGoogleCode } from "../../../../lib/google-auth";
 import { findUserByGoogleSub, linkGoogleAccount } from "../../../../lib/auth-tokens";
@@ -47,7 +47,7 @@ router.get("/", async (req: Request, res: Response) => {
         const created = await db()
           .from("users")
           .insert({
-            name: profile.name,
+            name: nameFromEmail(profile.email),
             email: profile.email,
             password: randomPassword,
             role: "user",

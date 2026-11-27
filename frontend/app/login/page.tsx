@@ -4,6 +4,7 @@ import { Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import GoogleButton from "@/app/components/GoogleButton";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -97,12 +98,7 @@ function LoginForm() {
         </form>
 
         <div className="px-6 pb-6">
-          <a
-            href="/api/auth/google/start"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            Continue with Google
-          </a>
+          <GoogleButton />
         </div>
 
         <div className="p-6 text-center text-sm text-gray-600 border-t border-gray-100 mt-6">

@@ -4,6 +4,7 @@ import { Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import GoogleButton from "@/app/components/GoogleButton";
 
 const SignupPage = () => {
   const [name, setName] = useState("");
@@ -46,7 +47,7 @@ const SignupPage = () => {
             </div>
           )}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1.5">Full Name</label>
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1.5">Full Name <span className="normal-case text-gray-400 font-normal">(optional)</span></label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -55,9 +56,9 @@ const SignupPage = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="John Doe"
                 className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all bg-gray-50 focus:bg-white"
-                required
               />
             </div>
+            <p className="mt-1 text-[11px] text-gray-400">Leave blank and we&apos;ll use your email address.</p>
           </div>
 
           <div>
@@ -95,6 +96,10 @@ const SignupPage = () => {
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </form>
+
+        <div className="px-6 pb-6">
+          <GoogleButton />
+        </div>
 
         <div className="p-6 text-center text-sm text-gray-600 border-t border-gray-100 mt-6">
           Already have an account? <Link href="/login" className="text-orange-600 font-bold hover:underline">Sign In</Link>
