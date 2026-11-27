@@ -22,7 +22,7 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 import { useCart, type CartItem } from "@/context/CartContext";
-import { computeTotals } from "@/lib/pricing";
+import { computeTotals, FREE_SHIPPING_ABOVE } from "@/lib/pricing";
 import { formatINR } from "@/lib/validation";
 import { SITE } from "@/lib/site";
 
@@ -40,7 +40,7 @@ type Address = {
   city: string;
   state: string;
   pincode: string;
-  is_default: number;
+  is_default: boolean;
 };
 
 type CheckoutSession = {
@@ -311,12 +311,17 @@ export default function CheckoutPage() {
   const isBuyNow = Boolean(buyNowItem);
 
   /* ── Totals (mirrors the server calculation in lib/pricing.ts) ────────── */
+  const selectedPincode = useMemo(
+    () => addresses.find((a) => a.id === selectedAddressId)?.pincode ?? "",
+    [addresses, selectedAddressId]
+  );
   const totals = useMemo(
     () =>
       computeTotals(
-        checkoutItems.map((i) => ({ unit_price: i.price, quantity: i.quantity }))
+        checkoutItems.map((i) => ({ unit_price: i.price, quantity: i.quantity })),
+        selectedPincode
       ),
-    [checkoutItems]
+    [checkoutItems, selectedPincode]
   );
 
   /* ── Auth guard ────────────────────────────────────────────────────────── */
@@ -337,7 +342,7 @@ export default function CheckoutPage() {
       setAddresses(list);
       setSelectedAddressId((current) => {
         if (current && list.some((a) => a.id === current)) return current;
-        const preferred = list.find((a) => a.is_default === 1) || list[0];
+        const preferred = list.find((a) => a.is_default === true) || list[0];
         return preferred ? preferred.id : null;
       });
     } catch {
@@ -740,7 +745,7 @@ export default function CheckoutPage() {
                                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                                   {address.label}
                                 </span>
-                                {address.is_default === 1 && (
+                                {address.is_default === true && (
                                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                                     Default
                                   </span>
@@ -1089,7 +1094,7 @@ export default function CheckoutPage() {
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-amber-200">
                     <div
                       className="h-full rounded-full bg-amber-500 transition-all"
-                      style={{ width: `${Math.min(100, (totals.subtotal / 25000) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (totals.subtotal / FREE_SHIPPING_ABOVE) * 100)}%` }}
                     />
                   </div>
                 </div>

@@ -32,6 +32,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { SITE, whatsappLink } from "@/lib/site";
+import { FREE_SHIPPING_ABOVE, shippingFor } from "@/lib/pricing";
 
 /* ══════════════════════════════════════════════════════════════════
    TYPES
@@ -78,7 +79,7 @@ type Address = {
   city: string;
   state: string;
   pincode: string;
-  is_default: number;
+  is_default: boolean;
 };
 
 type WishlistProduct = {
@@ -94,9 +95,6 @@ type WishlistProduct = {
 /* ══════════════════════════════════════════════════════════════════
    CONSTANTS & HELPERS
    ══════════════════════════════════════════════════════════════════ */
-
-const FREE_SHIPPING_ABOVE = 1999;
-const SHIPPING_FLAT = 99;
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -179,7 +177,7 @@ const EMPTY_ADDRESS = {
   city: "",
   state: "",
   pincode: "",
-  isDefault: 0,
+  isDefault: false,
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -439,8 +437,8 @@ function AddressForm({
       <label className="flex cursor-pointer items-center gap-2.5 text-xs font-semibold text-slate-600">
         <input
           type="checkbox"
-          checked={value.isDefault === 1}
-          onChange={(e) => set({ isDefault: e.target.checked ? 1 : 0 })}
+          checked={value.isDefault === true}
+          onChange={(e) => set({ isDefault: e.target.checked })}
           className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
         />
         Use as my default delivery address
@@ -560,7 +558,7 @@ function UserDashboardContent() {
       setAddresses(list);
       setSelectedAddressId((current) => {
         if (current && list.some((a) => a.id === current)) return current;
-        const preferred = list.find((a) => a.is_default === 1) || list[0];
+        const preferred = list.find((a) => a.is_default === true) || list[0];
         return preferred ? preferred.id : null;
       });
     } catch {
@@ -604,18 +602,17 @@ function UserDashboardContent() {
     };
   }, [orders, wishlist, addresses]);
 
-  const shipping = useMemo(() => {
-    if (items.length === 0 || subtotal >= FREE_SHIPPING_ABOVE) return 0;
-    return SHIPPING_FLAT;
-  }, [items.length, subtotal]);
-
-  const cartTotal = subtotal + shipping;
-  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_ABOVE - subtotal);
-
   const checkoutAddress = useMemo(
     () => addresses.find((a) => a.id === selectedAddressId) || null,
     [addresses, selectedAddressId]
   );
+  const shipping = useMemo(
+    () => shippingFor(subtotal, checkoutAddress?.pincode),
+    [subtotal, checkoutAddress?.pincode]
+  );
+
+  const cartTotal = subtotal + shipping;
+  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_ABOVE - subtotal);
 
   /* ── Actions ────────────────────────────────────────────────── */
 
@@ -1188,14 +1185,14 @@ function UserDashboardContent() {
                   ) : (
                     (() => {
                       const preferred =
-                        addresses.find((a) => a.is_default === 1) || addresses[0];
+                        addresses.find((a) => a.is_default === true) || addresses[0];
                       return (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                           <div className="flex items-center gap-2">
                             <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">
                               {preferred.label}
                             </span>
-                            {preferred.is_default === 1 && (
+                            {preferred.is_default === true && (
                               <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                                 Default
                               </span>
@@ -1727,7 +1724,7 @@ function UserDashboardContent() {
                     value={addressDraft}
                     errors={addressErrors}
                     onChange={setAddressDraft}
-                    onSubmit={() => saveAddress(addressDraft.isDefault === 1)}
+                    onSubmit={() => saveAddress(addressDraft.isDefault === true)}
                     onCancel={() => {
                       setAddressDraft(null);
                       setAddressErrors({});
@@ -1767,7 +1764,7 @@ function UserDashboardContent() {
                         <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                           {address.label}
                         </span>
-                        {address.is_default === 1 && (
+                        {address.is_default === true && (
                           <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                             Default
                           </span>
@@ -1809,7 +1806,7 @@ function UserDashboardContent() {
                         >
                           Edit
                         </button>
-                        {address.is_default !== 1 && (
+                        {address.is_default !== true && (
                           <button
                             onClick={() => setDefaultAddress(address.id)}
                             className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-700 transition-colors hover:bg-slate-50"
@@ -1969,8 +1966,8 @@ function UserDashboardContent() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    Free shipping on orders above {formatINR(FREE_SHIPPING_ABOVE)}, otherwise{" "}
-                    {formatINR(SHIPPING_FLAT)}.
+                    Free shipping on orders above {formatINR(FREE_SHIPPING_ABOVE)}. Otherwise delivery
+                    is {formatINR(50)} in Dhanbad, {formatINR(60)} nearby and {formatINR(80)} elsewhere.
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />

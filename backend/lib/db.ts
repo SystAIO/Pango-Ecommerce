@@ -359,7 +359,9 @@ async function functionArgs(name: string): Promise<{ name: string; type: string 
   if (!argTypesCache) argTypesCache = {};
   if (argTypesCache[name]) return argTypesCache[name];
   const result = await getPool().query(
-    `SELECT pg_get_function_arguments(p.oid) AS args
+    // identity arguments omit DEFAULT expressions. pg_get_function_arguments()
+    // appends them, which produces invalid `$1::boolean DEFAULT false` SQL.
+    `SELECT pg_get_function_identity_arguments(p.oid) AS args
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE p.proname = $1 AND n.nspname = 'public' LIMIT 1`,
     [name]

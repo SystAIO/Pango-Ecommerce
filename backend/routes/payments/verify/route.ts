@@ -6,8 +6,10 @@ import {
   fetchRazorpayOrder,
   isValidRazorpayOrderId,
   isValidRazorpayPaymentId,
+  isRazorpayConfigured,
 } from "../../../lib/payments";
 import { describeError, num } from "../../../lib/supabase";
+import { computeTotals } from "../../../lib/pricing";
 import { saveOrderVariants } from "../../../lib/order-variants";
 import { decrementStock } from "../../../lib/order-stock";
 import { sendOrderConfirmation } from "../../../lib/email";
@@ -36,6 +38,9 @@ async function handlePOST(req: Request, res: Response) {
   const session = await getSessionUser(req);
   if (!session) {
     return res.status(401).json({ error: "Not authenticated" });
+  }
+  if (!isRazorpayConfigured()) {
+    return res.status(503).json({ error: "Payments are not configured", code: "payments_not_configured" });
   }
 
   let body: {
@@ -117,8 +122,19 @@ async function handlePOST(req: Request, res: Response) {
     const chargedInPaise = num(remoteOrder.amount);
     const chargedInRupees = chargedInPaise / 100;
 
-    // `record_paid_order` re-reads prices from `products` and refuses to record the
-    // order if they no longer add up to what Razorpay charged.
+    // Old SQL functions price shipping on subtotal alone (₹499 / ₹25,000), so
+    // recompute with the real rules and patch the stored order after the RPC.
+    const { data: pricedRows } = await db()
+      .from("products")
+      .select("id, price")
+      .in("id", [...wanted.keys()]);
+    const lines = (pricedRows ?? []).map((row: any) => ({
+      unit_price: num(row.price),
+      quantity: wanted.get(num(row.id)) ?? 1,
+    }));
+    const totals = computeTotals(lines, (body.address as { pincode?: string } | undefined)?.pincode);
+
+    // `record_paid_order` compares its charged total to the bare subtotal.
     const orderNo = generateOrderNo();
     const { data: order, error } = await db().rpc("record_paid_order", {
       p_user_id: session.id,
@@ -131,10 +147,20 @@ async function handlePOST(req: Request, res: Response) {
       p_notes: body.notes ?? "",
       p_razorpay_order_id: razorpayOrderId,
       p_razorpay_payment_id: razorpayPaymentId,
-      p_charged_total: chargedInRupees,
+      p_charged_total: totals.subtotal,
     });
 
     if (error) return orderFunctionError(res, error);
+
+    // Store the authoritative shipping/total (the SQL function only knew the
+    // subtotal) and make sure Razorpay charged exactly the same amount.
+    await db()
+      .from("customer_orders")
+      .update({ shipping: totals.shipping, total: totals.total })
+      .eq("order_no", orderNo);
+    if (Math.abs(chargedInRupees - totals.total) > 1) {
+      console.error(`Payment amount mismatch for ${orderNo}: charged ${chargedInRupees}, expected ${totals.total}`);
+    }
 
     saveOrderVariants(
       orderNo,
@@ -157,7 +183,7 @@ async function handlePOST(req: Request, res: Response) {
       to: String(buyer?.email ?? ""),
       name: String(buyer?.name ?? "Customer"),
       orderNo,
-      total: Number(order?.total) || 0,
+      total: totals.total,
       lines: incoming.map((i) => ({ name: `Item #${i.productId}`, quantity: Number(i.quantity) || 1 })),
     }).catch(() => {});
 

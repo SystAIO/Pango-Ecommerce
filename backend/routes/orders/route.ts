@@ -2,6 +2,7 @@ import { db } from "../../lib/db";
 import { getSessionUser } from "../../lib/auth";
 import { orderFunctionError } from "../../lib/order-errors";
 import { asRows, describeError, num } from "../../lib/supabase";
+import { shippingFor } from "../../lib/pricing";
 import { saveOrderVariants } from "../../lib/order-variants";
 import { sendOrderConfirmation } from "../../lib/email";
 import { Router, type Request, type Response } from "express";
@@ -157,6 +158,16 @@ async function handlePOST(req: Request, res: Response) {
 
   if (error) return orderFunctionError(res, error);
 
+  // The SQL function prices shipping on subtotal alone; apply the live rules.
+  const subtotal = num((data as { subtotal?: unknown } | null)?.subtotal);
+  const pincode = (body.address as { pincode?: string } | undefined)?.pincode;
+  const shipping = shippingFor(subtotal, pincode);
+  const total = subtotal + shipping;
+  await db()
+    .from("customer_orders")
+    .update({ shipping, total })
+    .eq("order_no", orderNo);
+
   saveOrderVariants(
     orderNo,
     incoming.map((i) => ({
@@ -175,11 +186,16 @@ async function handlePOST(req: Request, res: Response) {
     to: String(buyer?.email ?? ""),
     name: String(buyer?.name ?? "Customer"),
     orderNo,
-    total: Number(data?.total) || 0,
+    total,
     lines: incoming.map((i) => ({ name: `Item #${i.productId}`, quantity: Number(i.quantity) || 1 })),
   }).catch(() => {});
 
-  return res.status(201).json({ success: true, order: data });
+  const { data: savedOrder } = await db()
+    .from("customer_orders")
+    .select("*")
+    .eq("order_no", orderNo)
+    .maybeSingle();
+  return res.status(201).json({ success: true, order: savedOrder ?? data });
 }
 
 router.get("/", handleGET);

@@ -18,7 +18,7 @@ const SignupPage = () => {
     setError("");
     try {
       await signup(name, email, password);
-      router.push("/login");
+      router.push("/");
     } catch (err: any) {
       setError(err.message);
     }

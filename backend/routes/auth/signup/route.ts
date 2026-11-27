@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import { db } from "../../../lib/db";
 import { generateToken } from "../../../lib/auth";
 import { describeError, num } from "../../../lib/supabase";
+import { issueAuthToken } from "../../../lib/auth-tokens";
+import { sendVerificationEmail } from "../../../lib/email";
 import { Router, type Request, type Response } from "express";
 
 const router = Router();
@@ -50,6 +52,16 @@ async function handlePOST(req: Request, res: Response) {
     const userId = num(created.data.id);
     const token = generateToken(userId, userRole);
 
+    // Mark the account as awaiting verification and email a single-use link.
+    await db().from("user_auth_meta").insert({ user_id: userId, email_verified: false });
+    try {
+      const verificationToken = await issueAuthToken(userId, "verify", 24);
+      await sendVerificationEmail(normalisedEmail, String(name), verificationToken);
+    } catch (mailError) {
+      // Account creation must still succeed if mail is temporarily down.
+      console.error("Verification email could not be sent:", mailError);
+    }
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -62,6 +74,7 @@ async function handlePOST(req: Request, res: Response) {
       message: "Account created successfully",
       user: { id: userId, name, email: normalisedEmail, role: userRole },
       token,
+      requiresVerification: true,
     });
   } catch (error) {
     console.error("Signup error:", describeError(error));

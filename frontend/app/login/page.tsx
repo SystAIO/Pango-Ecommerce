@@ -87,7 +87,7 @@ function LoginForm() {
               <input type="checkbox" className="rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
               <span className="text-gray-600">Remember me</span>
             </label>
-            <a href="#" className="text-orange-600 font-medium hover:text-orange-700">Forgot password?</a>
+            <Link href="/forgot-password" className="text-orange-600 font-medium hover:text-orange-700">Forgot password?</Link>
           </div>
 
           <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-orange-200 flex items-center justify-center gap-2 group">
@@ -95,6 +95,15 @@ function LoginForm() {
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </form>
+
+        <div className="px-6 pb-6">
+          <a
+            href="/api/auth/google/start"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Continue with Google
+          </a>
+        </div>
 
         <div className="p-6 text-center text-sm text-gray-600 border-t border-gray-100 mt-6">
           Don't have an account? <Link href="/signup" className="text-orange-600 font-bold hover:underline">Sign Up</Link>

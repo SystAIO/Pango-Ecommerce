@@ -222,14 +222,16 @@ create trigger customer_orders_touch_updated_at
 --  the browser uses to render the total. Change one, change the other.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-create or replace function public.shipping_for(p_subtotal numeric)
+create or replace function public.shipping_for(p_subtotal numeric, p_pincode text default '')
 returns numeric
 language sql
 immutable
 as $$
   select case
-    when p_subtotal <= 0 or p_subtotal >= 25000 then 0
-    else 499
+    when p_subtotal <= 0 or p_subtotal >= 999 then 0
+    when coalesce(p_pincode, '') = '826001' then 50
+    when coalesce(p_pincode, '') ~ '^(826|827|828|831|833|834|814|815|713|712)[0-9]{3}$' then 60
+    else 80
   end;
 $$;
 
@@ -325,7 +327,7 @@ begin
     into v_subtotal
     from jsonb_array_elements(v_lines) l;
 
-  v_shipping := public.shipping_for(v_subtotal);
+  v_shipping := public.shipping_for(v_subtotal, v_addr ->> 'pincode');
   v_total    := v_subtotal + v_shipping;
 
   insert into public.customer_orders (
@@ -412,11 +414,12 @@ begin
     into v_subtotal
     from jsonb_array_elements(v_lines) l;
 
-  if abs(p_charged_total - v_subtotal) > 1 then
-    raise exception 'AMOUNT_MISMATCH:%:%', v_subtotal, p_charged_total;
-  end if;
+  v_shipping := public.shipping_for(v_subtotal, v_addr ->> 'pincode');
+  v_total := v_subtotal + v_shipping;
 
-  v_shipping := greatest(0, v_total - v_subtotal);
+  if abs(p_charged_total - v_total) > 1 then
+    raise exception 'AMOUNT_MISMATCH:%:%', v_total, p_charged_total;
+  end if;
 
   insert into public.customer_orders (
     order_no, user_id, status, subtotal, shipping, total,
@@ -674,5 +677,36 @@ grant execute on function public.record_paid_order(bigint, text, jsonb, jsonb, t
 grant execute on function public.upsert_address(bigint, bigint, text, text, text, text, text, text, text, text, boolean) to service_role;
 grant execute on function public.delete_address(bigint, bigint) to service_role;
 grant execute on function public.resolve_order_lines(jsonb) to service_role;
+
+-- Account verification / Google linking (also in supabase/auth-extra.sql).
+create table if not exists public.user_auth_meta (
+  user_id bigint primary key,
+  email_verified boolean not null default false,
+  google_sub text unique,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.auth_tokens (
+  id bigint generated always as identity primary key,
+  user_id bigint not null,
+  token_hash text not null unique,
+  kind text not null check (kind in ('verify', 'reset')),
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists auth_tokens_user_kind_idx on public.auth_tokens (user_id, kind);
+insert into public.user_auth_meta (user_id, email_verified)
+select id, true from public.users on conflict (user_id) do nothing;
+alter table public.user_auth_meta enable row level security;
+alter table public.auth_tokens enable row level security;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'pango_shop') then
+    grant all on public.user_auth_meta, public.auth_tokens to pango_shop;
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant all on public.user_auth_meta, public.auth_tokens to service_role;
+  end if;
+end $$;
 
 commit;

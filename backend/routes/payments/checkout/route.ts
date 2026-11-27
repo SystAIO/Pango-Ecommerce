@@ -29,7 +29,7 @@ async function handlePOST(req: Request, res: Response) {
   if (!isRazorpayConfigured()) {
     return res.status(503).json({
         error:
-          "Payments are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env.local.",
+          "Payments are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to backend/.env.",
         code: "payments_not_configured",
       });
   }
@@ -149,7 +149,8 @@ async function handlePOST(req: Request, res: Response) {
     }
 
     const { subtotal, shipping, total } = computeTotals(
-      lines.map((line) => ({ unit_price: line.unit_price, quantity: line.quantity }))
+      lines.map((line) => ({ unit_price: line.unit_price, quantity: line.quantity })),
+      address.pincode
     );
 
     const { keyId } = getRazorpayCredentials();

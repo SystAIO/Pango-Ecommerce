@@ -16,6 +16,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { inr } from "@/lib/site";
 import type { SizeGuideRow } from "@/lib/catalog-config";
 import { DEFAULT_CATALOG_CONFIG } from "@/lib/catalog-config";
+import { shippingFor } from "@/lib/pricing";
 import { productGender } from "@/lib/gender";
 import { findMoreColorProducts } from "@/lib/product-shape";
 
@@ -628,7 +629,18 @@ export default function ProductDetailPage() {
               <p className="text-xs font-bold text-slate-900">Check Delivery Date</p>
               <div className="mt-2 flex gap-2">
                 <input value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Enter Pincode" inputMode="numeric" className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-xs outline-none focus:border-amber-500" />
-                <button type="button" onClick={() => setPincodeResult(pincode.length === 6 ? `Delivery by ${new Date(Date.now() + 4 * 86400000).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · COD available` : "Enter a valid 6-digit pincode")} className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white">Check</button>
+                <button type="button" onClick={() => {
+                  if (pincode.length !== 6) {
+                    setPincodeResult("Enter a valid 6-digit pincode");
+                    return;
+                  }
+                  const charge = shippingFor(price, pincode);
+                  setPincodeResult(
+                    charge === 0
+                      ? "Free delivery on this order · COD available"
+                      : `Delivery charge ${inr(charge)} · COD available`
+                  );
+                }} className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white">Check</button>
               </div>
               {pincodeResult ? <p className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><MapPin className="h-3 w-3" />{pincodeResult}</p> : null}
             </div>

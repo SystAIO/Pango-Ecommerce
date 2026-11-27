@@ -59,7 +59,7 @@ const tableCount = await db.query(
 if (tableCount.rows[0].n === 0) {
   skip("no tables created (the transaction rolled back)");
 } else {
-  check("7 tables created", tableCount.rows[0].n === 7, `found ${tableCount.rows[0].n}`);
+  check("9 tables created", tableCount.rows[0].n === 9, `found ${tableCount.rows[0].n}`);
 
   for (const t of ["users", "products", "customer_orders", "customer_order_items", "favorites", "addresses", "product_reviews"]) {
     const r = await db.query(
@@ -145,7 +145,7 @@ if (tableCount.rows[0].n === 0) {
     `select count(*)::int as n from pg_tables
       where schemaname='public' and rowsecurity = true`
   );
-  check("RLS enabled on all 7 tables", rlsOn.rows[0].n === 7, `found ${rlsOn.rows[0].n}`);
+  check("RLS enabled on all 9 tables", rlsOn.rows[0].n === 9, `found ${rlsOn.rows[0].n}`);
 
   /* ── 5. Order functions actually work ─────────────────────────────────── */
   console.log("\n5. Order functions, end to end");
@@ -223,14 +223,20 @@ if (tableCount.rows[0].n === 0) {
   console.log("\n6. Shipping rule (must match lib/pricing.ts)");
 
   const ship = await db.query(
-    `select public.shipping_for(0) as a, public.shipping_for(1000) as b,
-            public.shipping_for(25000) as c, public.shipping_for(50000) as d`
+    `select public.shipping_for(0, '826001') as a,
+            public.shipping_for(500, '826001') as b,
+            public.shipping_for(500, '827001') as c,
+            public.shipping_for(500, '110001') as d,
+            public.shipping_for(999, '110001') as e,
+            public.shipping_for(998, '110001') as f`
   );
   const r = ship.rows[0];
   check("empty cart is free", Number(r.a) === 0);
-  check("small order pays 499", Number(r.b) === 499, `got ${r.b}`);
-  check("exactly 25,000 is free", Number(r.c) === 0, `got ${r.c}`);
-  check("large order is free", Number(r.d) === 0);
+  check("Dhanbad 826001 pays 50", Number(r.b) === 50, `got ${r.b}`);
+  check("near Dhanbad pays 60", Number(r.c) === 60, `got ${r.c}`);
+  check("elsewhere pays 80", Number(r.d) === 80, `got ${r.d}`);
+  check("999 and above ships free", Number(r.e) === 0, `got ${r.e}`);
+  check("998 still pays", Number(r.f) === 80, `got ${r.f}`);
 }
 
 /* ── 8. seed.sql ────────────────────────────────────────────────────────── */
