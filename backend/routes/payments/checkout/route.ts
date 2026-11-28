@@ -4,6 +4,13 @@ import { isRazorpayConfigured, getRazorpayCredentials, createRazorpayOrder, toPa
 import { validateAddress } from "../../../lib/validation";
 import { computeTotals } from "../../../lib/pricing";
 import { describeError, num } from "../../../lib/supabase";
+import {
+  DEFAULT_REFERRAL_CONFIG,
+  mergeReferralConfig,
+  referralDiscount,
+} from "../../../lib/referral-config";
+import { readReferralConfig } from "../../../lib/referral-store";
+import { resolveOrderLines } from "../../../lib/order-lines";
 import { Router, type Request, type Response } from "express";
 
 const router = Router();
@@ -39,6 +46,7 @@ async function handlePOST(req: Request, res: Response) {
     addressId?: number;
     address?: Record<string, string>;
     notes?: string;
+    referralCode?: string;
   };
   try {
     body = req.body;
@@ -114,30 +122,10 @@ async function handlePOST(req: Request, res: Response) {
 
     if (productsResult.error) throw productsResult.error;
 
-    const byId = new Map(
-      (productsResult.data ?? []).map((product) => [num(product.id), product])
-    );
-
-    const missing = productIds.filter((id) => !byId.has(id));
-    if (missing.length > 0) {
+    const lines = resolveOrderLines(wanted, productsResult.data ?? []);
+    if (!lines) {
       return res.status(409).json({ error: "One or more items are no longer available" });
     }
-
-    const lines = productIds.map((productId) => {
-      const product = byId.get(productId)!;
-      const quantity = wanted.get(productId)!;
-      const unitPrice = num(product.price);
-
-      return {
-        product_id: productId,
-        name: product.name,
-        slug: product.slug,
-        image: product.image_url || null,
-        unit_price: unitPrice,
-        quantity,
-        line_total: unitPrice * quantity,
-      };
-    });
 
     // A product priced at 0 is an "On Request" listing and cannot be paid for online.
     const unpayable = lines.find((line) => line.unit_price <= 0);
@@ -148,10 +136,13 @@ async function handlePOST(req: Request, res: Response) {
         });
     }
 
-    const { subtotal, shipping, total } = computeTotals(
+    const { subtotal, shipping, total: beforeDiscount } = computeTotals(
       lines.map((line) => ({ unit_price: line.unit_price, quantity: line.quantity })),
       address.pincode
     );
+    const referral = mergeReferralConfig(readReferralConfig() ?? DEFAULT_REFERRAL_CONFIG);
+    const discount = referralDiscount(referral, String(body.referralCode ?? ""), subtotal);
+    const total = Math.max(0, beforeDiscount - discount);
 
     const { keyId } = getRazorpayCredentials();
     const receipt = `rcpt_${session.id}_${Date.now().toString(36)}`;
@@ -177,6 +168,8 @@ async function handlePOST(req: Request, res: Response) {
       items: lines,
       subtotal,
       shipping,
+      discount,
+      referralCode: String(body.referralCode ?? "").toUpperCase(),
       total,
       address,
       addressId,

@@ -25,6 +25,8 @@ import { useCart, type CartItem } from "@/context/CartContext";
 import { computeTotals, FREE_SHIPPING_ABOVE } from "@/lib/pricing";
 import { formatINR } from "@/lib/validation";
 import { SITE } from "@/lib/site";
+import { referralDiscount, type ReferralConfig } from "@/lib/referral-config";
+import type { Product } from "@/lib/product-shape";
 
 /* ══════════════════════════════════════════════════════════════════
    TYPES
@@ -269,7 +271,7 @@ function AddressFields({
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { items, ready: cartReady, buyNowItem, clearBuyNowItem, clearCart } = useCart();
+  const { items, ready: cartReady, buyNowItem, clearBuyNowItem, clearCart, addItem } = useCart();
 
   const [step, setStep] = useState<Step>("address");
 
@@ -282,6 +284,14 @@ export default function CheckoutPage() {
   const [savingAddress, setSavingAddress] = useState(false);
 
   const [notes, setNotes] = useState("");
+
+  // Referral
+  const [referralInput, setReferralInput] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralConfig, setReferralConfig] = useState<ReferralConfig | null>(null);
+
+  // Recommendations
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
 
   // Payment
   const [session, setSession] = useState<CheckoutSession | null>(null);
@@ -303,6 +313,17 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cod">("razorpay");
   const [placingCod, setPlacingCod] = useState(false);
 
+  useEffect(() => {
+    fetch("/api/referral-config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: ReferralConfig | null) => data && setReferralConfig(data))
+      .catch(() => {});
+    fetch("/api/products?limit=10")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { products?: Product[] } | null) => setRecommendations((data?.products ?? []).slice(0, 10)))
+      .catch(() => {});
+  }, []);
+
   /* ── Which items are being bought ──────────────────────────────────────── */
   const checkoutItems: CartItem[] = useMemo(
     () => (buyNowItem ? [buyNowItem] : items),
@@ -323,6 +344,9 @@ export default function CheckoutPage() {
       ),
     [checkoutItems, selectedPincode]
   );
+  const referralDiscountAmount = referralConfig
+    ? referralDiscount(referralConfig, referralCode, session?.subtotal ?? totals.subtotal)
+    : 0;
 
   /* ── Auth guard ────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -399,6 +423,7 @@ export default function CheckoutPage() {
           items: checkoutItems.map((i) => ({ productId: i.productId, quantity: i.quantity, color: i.color, size: i.size })),
           addressId: selectedAddressId,
           notes: notes.trim(),
+          referralCode,
         }),
       });
 
@@ -482,6 +507,7 @@ export default function CheckoutPage() {
           })),
           address: checkoutSession.address,
           notes: notes.trim(),
+          referralCode,
         }),
       });
 
@@ -563,6 +589,7 @@ export default function CheckoutPage() {
           },
           notes: notes.trim(),
           paymentMethod: "cod",
+          referralCode,
         }),
       });
 
@@ -695,16 +722,36 @@ export default function CheckoutPage() {
       CHECKOUT
       ══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-16 font-sans text-slate-800">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Steps */}
-        <div className="mb-8 flex items-center justify-center gap-2 text-xs font-bold">
-          <StepPill label="Delivery address" active={step === "address"} done={step !== "address"} />
-          <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
-          <StepPill label="Review & pay" active={step === "review"} done={false} />
-          <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
-          <StepPill label="Confirmation" active={false} done={false} />
+    <>
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link href="/" aria-label="Pango Apparels — home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pango-logo.png" alt="Pango Apparels" className="h-10 w-auto object-contain" />
+          </Link>
+          <nav className="hidden items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.12em] sm:flex">
+            {([
+              ["BAG", step === "address"],
+              ["ADDRESS", step === "address"],
+              ["PAYMENT", step === "review"],
+            ] as const).map(([label, active], index) => (
+              <React.Fragment key={label}>
+                {index > 0 ? <span className="w-8 border-t border-dashed border-slate-300 sm:w-10" /> : null}
+                <span className={active ? "border-b-2 border-teal-600 pb-0.5 text-teal-700" : "text-slate-400"}>
+                  {label}
+                </span>
+              </React.Fragment>
+            ))}
+          </nav>
+          <span className="flex items-center gap-1.5 text-emerald-700">
+            <ShieldCheck className="h-5 w-5" aria-hidden />
+            <span className="hidden text-[11px] font-black uppercase sm:inline">100% Secure</span>
+          </span>
         </div>
+      </header>
+
+      <div className="min-h-screen bg-[#F8FAFC] pb-16 font-sans text-slate-800">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ── Main column ────────────────────────────────────────────── */}
@@ -1055,6 +1102,57 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            <Panel
+              title="Have a referral code?"
+              subtitle="Enter the code shared with you. The discount is recalculated on the server before payment."
+            >
+              <div className="flex flex-wrap gap-2">
+                <input
+                  value={referralInput}
+                  onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                  placeholder="e.g. PANGO10"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold uppercase outline-none focus:border-orange-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = referralInput.trim().toUpperCase();
+                    if (!code) {
+                      setReferralCode("");
+                      return;
+                    }
+                    if (referralConfig?.active && code === referralConfig.code) {
+                      setReferralCode(code);
+                      setError(null);
+                    } else {
+                      setReferralCode("");
+                      setError("That referral code is not valid or is not active.");
+                    }
+                  }}
+                  className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white hover:bg-slate-700"
+                >
+                  Apply
+                </button>
+                {referralCode ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReferralCode("");
+                      setReferralInput("");
+                    }}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-rose-600"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              {referralCode ? (
+                <p className="mt-2 text-[11px] font-semibold text-emerald-700">
+                  {referralConfig?.percent ?? 0}% referral discount applied.
+                </p>
+              ) : null}
+            </Panel>
+
             {error && (
               <div className="mt-6 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
@@ -1084,6 +1182,9 @@ export default function CheckoutPage() {
                   label="Shipping"
                   value={totals.shipping > 0 ? formatINR(totals.shipping) : "Free"}
                 />
+                {referralDiscountAmount > 0 ? (
+                  <Row label={`Referral (${referralConfig?.percent ?? 0}%)`} value={`− ${formatINR(referralDiscountAmount)}`} />
+                ) : null}
               </div>
 
               {totals.amountToFreeShipping > 0 && totals.subtotal > 0 && (
@@ -1103,7 +1204,7 @@ export default function CheckoutPage() {
               <div className="mt-4 flex items-baseline justify-between border-t border-slate-200 pt-4">
                 <span className="text-sm font-black text-slate-900">Total</span>
                 <span className="text-xl font-black text-slate-900">
-                  {formatINR(totals.total)}
+                  {formatINR(session ? session.total : Math.max(0, totals.total - referralDiscountAmount))}
                 </span>
               </div>
 
@@ -1148,7 +1249,7 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <Lock className="h-4 w-4" /> Pay {formatINR(session?.total ?? totals.total)}
+                      <Lock className="h-4 w-4" /> Pay {formatINR(session ? session.total : Math.max(0, totals.total - referralDiscountAmount))}
                     </>
                   )}
                 </button>
@@ -1177,8 +1278,53 @@ export default function CheckoutPage() {
             </div>
           </aside>
         </div>
+
+        {/* ── You may also like ─────────────────────────────────────────── */}
+        {recommendations.length > 0 ? (
+          <section className="mt-12 rounded-3xl border border-rose-100 bg-rose-50/40 p-5 sm:p-7">
+            <h2 className="text-lg font-black text-[#171512]">You may also like:</h2>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {recommendations.map((product) => (
+                <div
+                  key={product.id || product.slug}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                >
+                  <Link href={`/product/${product.slug}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={product.image_url || "/product-placeholder.svg"}
+                      alt={product.name}
+                      className="aspect-[4/5] w-full object-cover object-top"
+                    />
+                  </Link>
+                  <div className="p-3">
+                    <p className="line-clamp-2 text-[11px] font-bold text-slate-800">{product.name}</p>
+                    <p className="mt-1 text-[11px] font-black text-slate-900">{formatINR(product.price)}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addItem({
+                          productId: Number(product.id),
+                          slug: product.slug,
+                          name: product.name,
+                          price: product.price,
+                          image: product.image_url || undefined,
+                          quantity: 1,
+                        })
+                      }
+                      className="mt-2 w-full rounded-lg border border-rose-500 py-1.5 text-[10px] font-black uppercase text-rose-600 transition-colors hover:bg-rose-500 hover:text-white"
+                    >
+                      Add to bag
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
+    </>
   );
 }
 

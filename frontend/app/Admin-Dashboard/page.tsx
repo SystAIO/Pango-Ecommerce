@@ -4,7 +4,7 @@ import {
   Users, Package, BarChart3, Settings, LogOut,
   Bell, Menu, Trash2, Edit, DollarSign, TrendingUp, Check, X, ShieldCheck, ShieldOff,
   Search, ExternalLink, Plus, RefreshCw, LayoutGrid, List, Sparkles, Image as ImageIcon, Tag,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal, Layers, Truck, Star, RotateCcw, Palette
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal, Layers, Truck, Star, RotateCcw, Palette, Gift
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND_GRID, DEFAULT_BRANDS } from '@/lib/catalog';
@@ -16,6 +16,7 @@ import HomepageEditor from './HomepageEditor';
 import CatalogEditor from './CatalogEditor';
 import ComboEditor from './ComboEditor';
 import CollectionEditor from './CollectionEditor';
+import ReferralEditor from './ReferralEditor';
 import InventoryManager from './InventoryManager';
 import OrderManager from './OrderManager';
 import ReviewManager from './ReviewManager';
@@ -811,6 +812,7 @@ const AdminDashboard = () => {
     { id: 'orders', label: 'Order Details', icon: Truck },
     { id: 'reviews', label: 'Review Ratings', icon: Star },
     { id: 'refunds', label: 'Refund / Return', icon: RotateCcw },
+    { id: 'referrals', label: 'Referral Codes', icon: Gift },
     { id: 'customize', label: 'Customize', icon: Sparkles },
     { id: 'manage-products', label: 'Manage Products', icon: Layers },
     { id: 'users', label: 'User Management', icon: Users },
@@ -1446,6 +1448,7 @@ const AdminDashboard = () => {
               {activeTab === 'orders' && 'Order Details'}
               {activeTab === 'reviews' && 'Review Ratings'}
               {activeTab === 'refunds' && 'Refund / Return'}
+              {activeTab === 'referrals' && 'Referral Codes'}
               {activeTab === 'customize' && (customizeTabs.find((t) => t.id === customizeSub)?.label ?? 'Customize')}
               {activeTab === 'manage-products' && (manageTabs.find((t) => t.id === manageSub)?.label ?? 'Manage Products')}
               {activeTab === 'users' && 'User Directory & Roles'}
@@ -2258,6 +2261,7 @@ const AdminDashboard = () => {
           {activeTab === 'orders' && <OrderManager />}
           {activeTab === 'reviews' && <ReviewManager />}
           {activeTab === 'refunds' && <RefundManager />}
+          {activeTab === 'referrals' && <ReferralEditor />}
 
           {/* ═══════════════════════════════════════════════════════════
               PARENT TAB: CUSTOMIZE — secondary navigation

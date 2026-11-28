@@ -10,6 +10,14 @@ import {
 } from "../../../lib/payments";
 import { describeError, num } from "../../../lib/supabase";
 import { computeTotals } from "../../../lib/pricing";
+import {
+  DEFAULT_REFERRAL_CONFIG,
+  mergeReferralConfig,
+  referralDiscount,
+} from "../../../lib/referral-config";
+import { readReferralConfig } from "../../../lib/referral-store";
+import { resolveOrderLines } from "../../../lib/order-lines";
+import { createComboOrder } from "../../../lib/combo-order";
 import { saveOrderVariants } from "../../../lib/order-variants";
 import { decrementStock } from "../../../lib/order-stock";
 import { sendOrderConfirmation } from "../../../lib/email";
@@ -50,6 +58,7 @@ async function handlePOST(req: Request, res: Response) {
     items?: Array<{ productId?: number; quantity?: number; color?: string; size?: string }>;
     address?: Record<string, string>;
     notes?: string;
+    referralCode?: string;
   };
   try {
     body = req.body;
@@ -126,40 +135,61 @@ async function handlePOST(req: Request, res: Response) {
     // recompute with the real rules and patch the stored order after the RPC.
     const { data: pricedRows } = await db()
       .from("products")
-      .select("id, price")
+      .select("id, name, slug, price, image_url")
       .in("id", [...wanted.keys()]);
-    const lines = (pricedRows ?? []).map((row: any) => ({
-      unit_price: num(row.price),
-      quantity: wanted.get(num(row.id)) ?? 1,
-    }));
-    const totals = computeTotals(lines, (body.address as { pincode?: string } | undefined)?.pincode);
+    const resolved = resolveOrderLines(wanted, pricedRows ?? []);
+    if (!resolved) return res.status(409).json({ error: "One or more items are no longer available" });
 
-    // `record_paid_order` compares its charged total to the bare subtotal.
+    const totals = computeTotals(
+      resolved.map((line) => ({ unit_price: line.unit_price, quantity: line.quantity })),
+      (body.address as { pincode?: string } | undefined)?.pincode
+    );
+    const referral = mergeReferralConfig(readReferralConfig() ?? DEFAULT_REFERRAL_CONFIG);
+    const discount = referralDiscount(referral, String(body.referralCode ?? ""), totals.subtotal);
+    const finalTotal = Math.max(0, totals.total - discount);
     const orderNo = generateOrderNo();
-    const { data: order, error } = await db().rpc("record_paid_order", {
-      p_user_id: session.id,
-      p_order_no: orderNo,
-      p_items: [...wanted.entries()].map(([product_id, quantity]) => ({
-        product_id,
-        quantity,
-      })),
-      p_address: body.address ?? {},
-      p_notes: body.notes ?? "",
-      p_razorpay_order_id: razorpayOrderId,
-      p_razorpay_payment_id: razorpayPaymentId,
-      p_charged_total: totals.subtotal,
-    });
 
-    if (error) return orderFunctionError(res, error);
+    let order: unknown;
+    if (resolved.some((line) => line.isCombo)) {
+      // SQL order functions only know `products`; write combo orders directly.
+      order = await createComboOrder({
+        userId: session.id,
+        orderNo,
+        lines: resolved,
+        address: body.address ?? {},
+        notes: body.notes ?? "",
+        paymentMethod: "razorpay",
+        paymentStatus: "paid",
+        razorpayOrderId,
+        razorpayPaymentId,
+        discount,
+        color: incoming[0]?.color,
+        size: incoming[0]?.size,
+      });
+    } else {
+      // `record_paid_order` compares its charged total to the bare subtotal.
+      const rpc = await db().rpc("record_paid_order", {
+        p_user_id: session.id,
+        p_order_no: orderNo,
+        p_items: [...wanted.entries()].map(([product_id, quantity]) => ({ product_id, quantity })),
+        p_address: body.address ?? {},
+        p_notes: body.notes ?? "",
+        p_razorpay_order_id: razorpayOrderId,
+        p_razorpay_payment_id: razorpayPaymentId,
+        p_charged_total: totals.subtotal,
+      });
+      if (rpc.error) return orderFunctionError(res, rpc.error);
+      order = rpc.data;
 
-    // Store the authoritative shipping/total (the SQL function only knew the
-    // subtotal) and make sure Razorpay charged exactly the same amount.
-    await db()
-      .from("customer_orders")
-      .update({ shipping: totals.shipping, total: totals.total })
-      .eq("order_no", orderNo);
-    if (Math.abs(chargedInRupees - totals.total) > 1) {
-      console.error(`Payment amount mismatch for ${orderNo}: charged ${chargedInRupees}, expected ${totals.total}`);
+      // Store the authoritative shipping/total (the SQL function only knew the
+      // subtotal) and make sure Razorpay charged exactly the same amount.
+      await db()
+        .from("customer_orders")
+        .update({ shipping: totals.shipping, total: finalTotal })
+        .eq("order_no", orderNo);
+    }
+    if (Math.abs(chargedInRupees - finalTotal) > 1) {
+      console.error(`Payment amount mismatch for ${orderNo}: charged ${chargedInRupees}, expected ${finalTotal}`);
     }
 
     saveOrderVariants(
@@ -183,11 +213,16 @@ async function handlePOST(req: Request, res: Response) {
       to: String(buyer?.email ?? ""),
       name: String(buyer?.name ?? "Customer"),
       orderNo,
-      total: totals.total,
+      total: finalTotal,
       lines: incoming.map((i) => ({ name: `Item #${i.productId}`, quantity: Number(i.quantity) || 1 })),
     }).catch(() => {});
 
-    return res.status(201).json({ success: true, order });
+    const { data: savedOrder } = await db()
+      .from("customer_orders")
+      .select("*")
+      .eq("order_no", orderNo)
+      .maybeSingle();
+    return res.status(201).json({ success: true, order: savedOrder ?? order });
   } catch (error) {
     console.error("POST /api/payments/verify error:", describeError(error));
     return res.status(500).json({

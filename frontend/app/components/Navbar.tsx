@@ -165,10 +165,12 @@ export default function Navbar() {
           <div className="overflow-hidden border-b border-white/10 bg-[#111] py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#f6f1e8] sm:text-[10px]">
             {(() => {
               const text = `${announcement ?? "Free Shipping Sitewide on Every Order, Don't Miss Out!!"}   •   `;
+              // Two identical, content-sized copies: translating the track by
+              // -50% moves exactly one full copy, so the loop has no visible seam.
               return (
-                <div className="animate-marquee flex w-[200%] whitespace-nowrap">
-                  <span className="w-1/2 shrink-0">{text.repeat(4)}</span>
-                  <span className="w-1/2 shrink-0" aria-hidden>{text.repeat(4)}</span>
+                <div className="animate-marquee flex w-max whitespace-nowrap">
+                  <span className="shrink-0">{text.repeat(8)}</span>
+                  <span className="shrink-0" aria-hidden>{text.repeat(8)}</span>
                 </div>
               );
             })()}

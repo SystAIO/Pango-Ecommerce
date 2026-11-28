@@ -41,6 +41,7 @@ import googleStartRouter from "./routes/auth/google/start/route";
 import googleCallbackRouter from "./routes/auth/google/callback/route";
 import favoritesRouter from "./routes/favorites/route";
 import navbarMenuRouter from "./routes/navbar-menu/route";
+import referralConfigRouter from "./routes/referral-config/route";
 import ordersRouter from "./routes/orders/route";
 import orderIdRouter from "./routes/orders/[id]/route";
 import paymentsCheckoutRouter from "./routes/payments/checkout/route";
@@ -77,6 +78,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/products", productSlugRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/navbar-menu", navbarMenuRouter);
+app.use("/api/referral-config", referralConfigRouter);
 
 // Auth & account
 app.use("/api/auth/login", loginRouter);

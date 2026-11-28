@@ -3,6 +3,14 @@ import { getSessionUser } from "../../lib/auth";
 import { orderFunctionError } from "../../lib/order-errors";
 import { asRows, describeError, num } from "../../lib/supabase";
 import { shippingFor } from "../../lib/pricing";
+import {
+  DEFAULT_REFERRAL_CONFIG,
+  mergeReferralConfig,
+  referralDiscount,
+} from "../../lib/referral-config";
+import { readReferralConfig } from "../../lib/referral-store";
+import { resolveOrderLines } from "../../lib/order-lines";
+import { createComboOrder } from "../../lib/combo-order";
 import { saveOrderVariants } from "../../lib/order-variants";
 import { sendOrderConfirmation } from "../../lib/email";
 import { Router, type Request, type Response } from "express";
@@ -124,6 +132,7 @@ async function handlePOST(req: Request, res: Response) {
     address?: Record<string, string>;
     notes?: string;
     paymentMethod?: string;
+    referralCode?: string;
   };
   try {
     body = req.body;
@@ -145,28 +154,61 @@ async function handlePOST(req: Request, res: Response) {
   }
 
   const orderNo = generateOrderNo();
-  const { data, error } = await db().rpc("place_customer_order", {
-    p_user_id: session.id,
-    p_order_no: orderNo,
-    p_items: items,
-    p_address: body.address ?? {},
-    p_notes: body.notes ?? "",
-    // Whitelisted here as well as inside the function. The function is the real
-    // boundary — this just avoids sending a value we already know is wrong.
-    p_payment_method: body.paymentMethod === "cod" ? "cod" : "whatsapp",
-  });
+  const paymentMethod = body.paymentMethod === "cod" ? "cod" : "whatsapp";
+  const address = body.address ?? {};
+  const pincode = (address as { pincode?: string }).pincode;
 
-  if (error) return orderFunctionError(res, error);
+  // Combos are not rows in `products`, so the SQL order function cannot price
+  // them. Branch to a direct write when the basket contains one.
+  const { data: pricedRows } = await db()
+    .from("products")
+    .select("id, name, slug, price, image_url")
+    .in("id", items.map((i) => i.product_id));
+  const resolved = resolveOrderLines(
+    new Map(items.map((i) => [i.product_id, i.quantity])),
+    pricedRows ?? []
+  );
+  if (!resolved) return res.status(409).json({ error: "One or more items are no longer available" });
 
-  // The SQL function prices shipping on subtotal alone; apply the live rules.
-  const subtotal = num((data as { subtotal?: unknown } | null)?.subtotal);
-  const pincode = (body.address as { pincode?: string } | undefined)?.pincode;
-  const shipping = shippingFor(subtotal, pincode);
-  const total = subtotal + shipping;
-  await db()
-    .from("customer_orders")
-    .update({ shipping, total })
-    .eq("order_no", orderNo);
+  const referral = mergeReferralConfig(readReferralConfig() ?? DEFAULT_REFERRAL_CONFIG);
+  const discount = referralDiscount(referral, String(body.referralCode ?? ""), resolved.reduce((n, l) => n + l.line_total, 0));
+  let data: unknown;
+
+  if (resolved.some((line) => line.isCombo)) {
+    data = await createComboOrder({
+      userId: session.id,
+      orderNo,
+      lines: resolved,
+      address,
+      notes: body.notes ?? "",
+      paymentMethod: paymentMethod as "cod" | "whatsapp",
+      paymentStatus: "pending",
+      discount,
+      color: incoming[0]?.color,
+      size: incoming[0]?.size,
+    });
+  } else {
+    const rpc = await db().rpc("place_customer_order", {
+      p_user_id: session.id,
+      p_order_no: orderNo,
+      p_items: items,
+      p_address: address,
+      p_notes: body.notes ?? "",
+      p_payment_method: paymentMethod,
+    });
+    if (rpc.error) return orderFunctionError(res, rpc.error);
+    data = rpc.data;
+
+    // The SQL function prices shipping on subtotal alone; apply the live rules.
+    const subtotal = num((data as { subtotal?: unknown } | null)?.subtotal);
+    const shipping = shippingFor(subtotal, pincode);
+    const total = Math.max(0, subtotal + shipping - discount);
+    await db()
+      .from("customer_orders")
+      .update({ shipping, total })
+      .eq("order_no", orderNo);
+  }
+  const total = num((data as { total?: unknown } | null)?.total);
 
   saveOrderVariants(
     orderNo,
