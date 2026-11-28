@@ -15,12 +15,14 @@
 
 export const FREE_SHIPPING_ABOVE = 999;
 export const LOCAL_PINCODE = "826001";
+/** Dhanbad district pincodes (826xxx / 828xxx) all pay the local rate. */
+const LOCAL_PREFIXES = ["826", "828"];
 export const SHIPPING_LOCAL = 50;
 export const SHIPPING_NEAR = 60;
 export const SHIPPING_FAR = 80;
 
 /** Pincode prefixes roughly within 300 km of Dhanbad (Jharkhand / Bihar / near WB). */
-const DEFAULT_NEAR_PREFIXES = ["826", "827", "828", "831", "833", "834", "814", "815", "713", "712"];
+const DEFAULT_NEAR_PREFIXES = ["827", "831", "833", "834", "814", "815", "713", "712"];
 
 function nearPrefixes(): string[] {
   const configured = String(
@@ -38,7 +40,9 @@ export function shippingFor(subtotal: number, pincode?: string | null): number {
   if (amount <= 0 || amount >= FREE_SHIPPING_ABOVE) return 0;
 
   const pin = String(pincode ?? "").trim();
-  if (pin === LOCAL_PINCODE) return SHIPPING_LOCAL;
+  if (/^\d{6}$/.test(pin) && LOCAL_PREFIXES.some((prefix) => pin.startsWith(prefix))) {
+    return SHIPPING_LOCAL;
+  }
   if (/^\d{6}$/.test(pin) && nearPrefixes().some((prefix) => pin.startsWith(prefix))) {
     return SHIPPING_NEAR;
   }

@@ -51,6 +51,8 @@ interface Product {
   coupon?: ProductCoupon | null;
   color?: ProductColor | null;
   moreColors?: ProductColor[];
+  rating?: number;
+  purchaseCount?: number;
   created_at?: string;
 }
 
@@ -734,6 +736,8 @@ const AdminDashboard = () => {
   const [newProdCoupon, setNewProdCoupon] = useState<CouponDraft>({ ...EMPTY_COUPON });
   const [newProdColor, setNewProdColor] = useState<ProductColor>({ name: '', hex: '#000000' });
   const [newProdMoreColors, setNewProdMoreColors] = useState<ProductColor[]>([]);
+  const [newProdRating, setNewProdRating] = useState(0);
+  const [newProdPurchaseCount, setNewProdPurchaseCount] = useState(0);
   const [notification, setNotification] = useState('');
 
   const [specSections, setSpecSections] = useState<SpecSection[]>(() => topwearSpecs('men'));
@@ -948,6 +952,8 @@ const AdminDashboard = () => {
     setNewProdCoupon({ ...EMPTY_COUPON });
     setNewProdColor({ name: '', hex: '#000000' });
     setNewProdMoreColors([]);
+    setNewProdRating(0);
+    setNewProdPurchaseCount(0);
     setSpecSections(topwearSpecs('men'));
     setIsProductModalOpen(true);
   };
@@ -1007,6 +1013,8 @@ const AdminDashboard = () => {
     } : { ...EMPTY_COUPON });
     setNewProdColor(p.color ? { ...p.color } : { name: '', hex: '#000000' });
     setNewProdMoreColors((p.moreColors ?? []).map((c) => ({ ...c })));
+    setNewProdRating(Number(p.rating) || 0);
+    setNewProdPurchaseCount(Number(p.purchaseCount) || 0);
 
     // Parse specifications into SpecSection array
     let rawSpecs = p.specifications;
@@ -1025,7 +1033,7 @@ const AdminDashboard = () => {
         .filter(([title]) => {
           const key = title.toLowerCase();
           return !key.includes('color variant') && !key.includes('product coupon') &&
-            key !== 'product color' && key !== 'more colors';
+            key !== 'product color' && key !== 'more colors' && key !== 'purchase count';
         })
         .map(([secTitle, fields]) => ({
           title: secTitle,
@@ -1103,6 +1111,8 @@ const AdminDashboard = () => {
             images: galleryArray,
             description_intro: newProdIntro,
             coupon: couponPayload,
+            rating: newProdRating,
+            purchaseCount: newProdPurchaseCount,
             color: newProdColor.hex ? newProdColor : null,
             moreColors: newProdMoreColors,
             specifications:
@@ -1138,6 +1148,8 @@ const AdminDashboard = () => {
             images: galleryArray,
             description_intro: newProdIntro,
             coupon: couponPayload,
+            rating: newProdRating,
+            purchaseCount: newProdPurchaseCount,
             color: newProdColor.hex ? newProdColor : null,
             moreColors: newProdMoreColors,
             specifications:

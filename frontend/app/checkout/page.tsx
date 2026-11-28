@@ -348,13 +348,8 @@ export default function CheckoutPage() {
     ? referralDiscount(referralConfig, referralCode, session?.subtotal ?? totals.subtotal)
     : 0;
 
-  /* ── Auth guard ────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login");
-    }
-  }, [authLoading, user, router]);
-
+  /* ── Guests can browse the bag and enter a referral code. They are sent to
+        sign in only when they try to continue to payment. ────────────────── */
   /* ── Load saved addresses ──────────────────────────────────────────────── */
   const loadAddresses = useCallback(async () => {
     setAddressesLoading(true);
@@ -531,6 +526,10 @@ export default function CheckoutPage() {
   };
 
   const handlePayClick = async () => {
+    if (!user) {
+      router.push("/login?next=/checkout");
+      return;
+    }
     if (paymentMethod === "cod") {
       await placeCashOnDelivery();
       return;
@@ -614,15 +613,6 @@ export default function CheckoutPage() {
   );
 
   /* ── Loading / guard states ────────────────────────────────────────────── */
-  if (authLoading || !user) {
-    return (
-      <CenteredState>
-        <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-        <p className="text-xs font-bold text-slate-500">Preparing checkout…</p>
-      </CenteredState>
-    );
-  }
-
   if (cartReady && checkoutItems.length === 0 && step !== "success") {
     return (
       <CenteredState>
@@ -694,7 +684,7 @@ export default function CheckoutPage() {
             </div>
 
             <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-              A confirmation has been sent to {user.email}. Our team will contact you to
+              A confirmation has been sent to {user?.email ?? "your email"}. Our team will contact you to
               arrange delivery and installation.
             </p>
           </div>
@@ -727,11 +717,11 @@ export default function CheckoutPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link href="/" aria-label="Pango Apparels — home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pango-logo.png" alt="Pango Apparels" className="h-10 w-auto object-contain" />
+            <img src="/pango-logo.png" alt="Pango Apparels" className="h-16 w-auto object-contain sm:h-20" />
           </Link>
           <nav className="hidden items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.12em] sm:flex">
             {([
-              ["BAG", step === "address"],
+              ["CART", step === "address"],
               ["ADDRESS", step === "address"],
               ["PAYMENT", step === "review"],
             ] as const).map(([label, active], index) => (
@@ -1211,6 +1201,10 @@ export default function CheckoutPage() {
               {step === "address" ? (
                 <button
                   onClick={() => {
+                    if (!user) {
+                      router.push("/login?next=/checkout");
+                      return;
+                    }
                     if (!selectedAddressId && !addressDraft) {
                       setError("Select or add a delivery address to continue.");
                       return;
@@ -1314,7 +1308,7 @@ export default function CheckoutPage() {
                       }
                       className="mt-2 w-full rounded-lg border border-rose-500 py-1.5 text-[10px] font-black uppercase text-rose-600 transition-colors hover:bg-rose-500 hover:text-white"
                     >
-                      Add to bag
+                      Add to cart
                     </button>
                   </div>
                 </div>

@@ -61,6 +61,42 @@ export async function consumeAuthToken(
   return result?.error ? null : num(row.user_id);
 }
 
+/** Six-digit OTP for signup verification, hashed at rest, 10-minute life. */
+export async function issueOtp(userId: number): Promise<string> {
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  await db()
+    .from("auth_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("kind", "verify");
+  const { error } = await db().from("auth_tokens").insert({
+    user_id: userId,
+    token_hash: hash(`otp:${userId}:${otp}`),
+    kind: "verify",
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+  });
+  if (error) throw error;
+  return otp;
+}
+
+export async function consumeOtp(userId: number, otp: string): Promise<boolean> {
+  const { data, error } = await db()
+    .from("auth_tokens")
+    .select("id, expires_at, used_at")
+    .eq("user_id", userId)
+    .eq("token_hash", hash(`otp:${userId}:${otp.trim()}`))
+    .eq("kind", "verify")
+    .maybeSingle();
+  if (error) throw error;
+  const row = data as unknown as { id: number; expires_at: string; used_at: string | null } | null;
+  if (!row || row.used_at || new Date(row.expires_at).getTime() <= Date.now()) return false;
+  const updated = await db()
+    .from("auth_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("id", row.id);
+  return !(updated as unknown as { error?: unknown })?.error;
+}
+
 export async function isEmailVerified(userId: number): Promise<boolean> {
   const { data } = await db()
     .from("user_auth_meta")

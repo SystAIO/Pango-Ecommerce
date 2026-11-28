@@ -10,6 +10,7 @@ const check = (label: string, pass: boolean, detail = "") => {
 console.log("\nshipping rules");
 check("empty cart is free", shippingFor(0, "110001") === 0);
 check("Dhanbad 826001 is 50", shippingFor(500, "826001") === 50, String(shippingFor(500, "826001")));
+check("Dhanbad 828111 is 50", shippingFor(500, "828111") === 50, String(shippingFor(500, "828111")));
 check("within 300 km is 60", shippingFor(500, "827101") === 60, String(shippingFor(500, "827101")));
 check("far pincode is 80", shippingFor(500, "110001") === 80, String(shippingFor(500, "110001")));
 check("unknown pincode is 80", shippingFor(500, "") === 80);

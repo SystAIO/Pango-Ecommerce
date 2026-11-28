@@ -225,7 +225,7 @@ if (tableCount.rows[0].n === 0) {
   const ship = await db.query(
     `select public.shipping_for(0, '826001') as a,
             public.shipping_for(500, '826001') as b,
-            public.shipping_for(500, '827001') as c,
+            public.shipping_for(500, '828111') as c,
             public.shipping_for(500, '110001') as d,
             public.shipping_for(999, '110001') as e,
             public.shipping_for(998, '110001') as f`
@@ -233,8 +233,9 @@ if (tableCount.rows[0].n === 0) {
   const r = ship.rows[0];
   check("empty cart is free", Number(r.a) === 0);
   check("Dhanbad 826001 pays 50", Number(r.b) === 50, `got ${r.b}`);
-  check("near Dhanbad pays 60", Number(r.c) === 60, `got ${r.c}`);
+  check("Dhanbad 828111 pays 50", Number(r.c) === 50, `got ${r.c}`);
   check("elsewhere pays 80", Number(r.d) === 80, `got ${r.d}`);
+  check("within 300 km (827) pays 60", Number(await db.query(`select public.shipping_for(500,'827001') as n`).then(x=>x.rows[0].n)) === 60);
   check("999 and above ships free", Number(r.e) === 0, `got ${r.e}`);
   check("998 still pays", Number(r.f) === 80, `got ${r.f}`);
 }

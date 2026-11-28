@@ -34,6 +34,8 @@ export type Product = {
   bundle_slugs: string[];
   /** Set per product in Admin → Product Management; overrides the global coupons. */
   coupon: ProductCoupon | null;
+  /** Social proof shown on cards: rating above 4 and approximate purchases. */
+  purchaseCount: number;
   /** Primary colourway and sibling colours used by the "MORE COLORS" rail. */
   color: ProductColor | null;
   moreColors: ProductColor[];
@@ -63,6 +65,15 @@ export type ProductColor = { name: string; hex: string };
 /** Reserved spec sections: colour data lives in the products jsonb column. */
 export const PRODUCT_COLOR_KEY = "PRODUCT COLOR";
 export const MORE_COLORS_KEY = "MORE COLORS";
+export const PURCHASE_COUNT_KEY = "PURCHASE COUNT";
+
+/** Random social proof for new products: rating 4.1–4.9, purchases 1k–99k. */
+export function randomRating(): number {
+  return Math.round((4.1 + Math.random() * 0.8) * 10) / 10;
+}
+export function randomPurchaseCount(): number {
+  return Math.floor(1000 + Math.random() * 99000);
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -170,6 +181,12 @@ export function toProduct(row: ProductRow): Product {
   if (colourEntry) delete specifications[colourEntry[0]];
   if (moreColoursEntry) delete specifications[moreColoursEntry[0]];
 
+  const purchaseEntry = Object.entries(specifications).find(
+    ([title]) => title.toLowerCase() === PURCHASE_COUNT_KEY.toLowerCase()
+  );
+  const purchaseCount = purchaseEntry ? num(purchaseEntry[1], 0) : 0;
+  if (purchaseEntry) delete specifications[purchaseEntry[0]];
+
   return {
     id: num(row.id),
     name: String(row.name ?? ""),
@@ -197,6 +214,7 @@ export function toProduct(row: ProductRow): Product {
     coupon,
     color,
     moreColors,
+    purchaseCount,
     created_at: String(row.created_at ?? ""),
   };
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { HomeSections } from "@/lib/homepage-content";
 
 /**
@@ -18,8 +17,8 @@ const SLIDE_DURATION_MS = 1000;
  *
  * Every field of every slide is admin-editable (Admin → Customize Homepage →
  * Hero); up to four slides, one per card. Slides are stacked and cross-faded,
- * and advance automatically every second. Arrows, dots and pause-on-hover are
- * available so a shopper can hold a slide they are reading.
+ * and advance automatically every second. Dots and pause-on-hover let a shopper
+ * jump to a slide or hold one they are reading.
  */
 export default function Hero({ hero }: { hero: HomeSections["hero"] }) {
   const [index, setIndex] = useState(0);
@@ -37,8 +36,6 @@ export default function Hero({ hero }: { hero: HomeSections["hero"] }) {
   }, [paused, total]);
 
   if (!hero.enabled || total === 0) return null;
-
-  const go = (next: number) => setIndex((next + total) % total);
 
   return (
     <section
@@ -137,23 +134,6 @@ export default function Hero({ hero }: { hero: HomeSections["hero"] }) {
       {/* ── Carousel controls ── */}
       {total > 1 ? (
         <>
-          <button
-            type="button"
-            onClick={() => go(index - 1)}
-            aria-label="Previous slide"
-            className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#171512] shadow-md backdrop-blur transition-colors hover:bg-white sm:left-4 sm:h-10 sm:w-10"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => go(index + 1)}
-            aria-label="Next slide"
-            className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#171512] shadow-md backdrop-blur transition-colors hover:bg-white sm:right-4 sm:h-10 sm:w-10"
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          </button>
-
           <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
             {slides.map((slide, i) => (
               <button
@@ -162,7 +142,7 @@ export default function Hero({ hero }: { hero: HomeSections["hero"] }) {
                 onClick={() => setIndex(i)}
                 aria-label={`Go to slide ${i + 1}`}
                 aria-current={i === index}
-                className={`h-1.5 rounded-full transition-all ${
+                className={`h-1.5 cursor-pointer rounded-full transition-all ${
                   i === index ? "w-6 bg-[#171512]" : "w-1.5 bg-[#171512]/30 hover:bg-[#171512]/60"
                 }`}
               />

@@ -5,6 +5,7 @@ import { Heart, Package } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import type { Product } from "@/lib/product-shape";
 import { inr } from "@/lib/site";
+import ProductStatBadge from "./ProductStatBadge";
 
 /**
  * The campaign-style product card used by the New Arrivals grid: a full-bleed
@@ -20,7 +21,6 @@ export default function NewArrivalCard({
 }) {
   const { toggleFavorite, isFavorite } = useWishlist();
   const favorited = isFavorite(product.id);
-  const label = product.badge || product.category;
 
   return (
     <article className="group flex h-full flex-col">
@@ -41,11 +41,9 @@ export default function NewArrivalCard({
           )}
         </Link>
 
-        {label ? (
-          <span className="absolute bottom-2 left-2 max-w-[85%] truncate rounded bg-black/85 px-2 py-1 text-[10px] font-bold text-white">
-            {label}
-          </span>
-        ) : null}
+        <span className="absolute bottom-2 left-2 max-w-[85%] truncate">
+          <ProductStatBadge product={product} />
+        </span>
 
         <button
           type="button"

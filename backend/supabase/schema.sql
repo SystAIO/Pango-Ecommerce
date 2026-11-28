@@ -229,8 +229,8 @@ immutable
 as $$
   select case
     when p_subtotal <= 0 or p_subtotal >= 999 then 0
-    when coalesce(p_pincode, '') = '826001' then 50
-    when coalesce(p_pincode, '') ~ '^(826|827|828|831|833|834|814|815|713|712)[0-9]{3}$' then 60
+    when coalesce(p_pincode, '') ~ '^(826|828)[0-9]{3}$' then 50
+    when coalesce(p_pincode, '') ~ '^(827|831|833|834|814|815|713|712)[0-9]{3}$' then 60
     else 80
   end;
 $$;

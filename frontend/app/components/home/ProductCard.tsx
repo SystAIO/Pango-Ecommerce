@@ -7,6 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import type { Product } from "@/lib/product-shape";
 import { inr } from "@/lib/site";
+import ProductStatBadge from "./ProductStatBadge";
 
 /**
  * The storefront product card.
@@ -93,11 +94,7 @@ export default function ProductCard({
             -{product.discount}%
           </span>
         ) : null}
-        {product.badge ? (
-          <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
-            {product.badge}
-          </span>
-        ) : null}
+        <ProductStatBadge product={product} />
       </div>
 
       {/* ── Wishlist ── */}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Package } from "lucide-react";
 import type { Product } from "@/lib/product-shape";
 import { inr } from "@/lib/site";
+import ProductStatBadge from "./ProductStatBadge";
 
 /**
  * The compact card used by the homepage rails (Combos, New Launch, Feels Good).
@@ -22,7 +23,7 @@ export default function RailCard({
   /** Eagerly load the image — only worth it for above-the-fold cards. */
   priority?: boolean;
 }) {
-  const label = product.badge || product.category;
+
 
   return (
     <Link
@@ -43,9 +44,9 @@ export default function RailCard({
             <Package className="h-8 w-8 text-stone-300" aria-hidden />
           </span>
         )}
-        {overlay && label ? (
-          <span className="absolute bottom-2 left-2 rounded bg-black/85 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white">
-            {label}
+        {overlay ? (
+          <span className="absolute bottom-2 left-2">
+            <ProductStatBadge product={product} />
           </span>
         ) : null}
       </span>

@@ -344,7 +344,7 @@ export default function Navbar() {
                   </Link>
 
                   <Link
-                    href="/user-dashboard?tab=cart"
+                    href="/checkout"
                     aria-label="Shopping cart"
                     className="relative text-stone-700 transition-colors hover:text-black"
                   >

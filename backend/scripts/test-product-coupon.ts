@@ -4,7 +4,15 @@
  * visible spec table. Verify that round trip without a database.
  */
 import { toProductInput } from "../lib/products";
-import { normaliseProductCoupon, PRODUCT_COUPON_KEY, toProduct } from "../lib/product-shape";
+import {
+  normaliseProductCoupon,
+  PRODUCT_COUPON_KEY,
+  PURCHASE_COUNT_KEY,
+  randomPurchaseCount,
+  randomRating,
+  toProduct,
+} from "../lib/product-shape";
+import { num } from "../lib/supabase";
 
 let failures = 0;
 const check = (label: string, pass: boolean, detail = "") => {
@@ -58,6 +66,18 @@ check(
 
 const percent = normaliseProductCoupon({ code: "new10", value: "10", kind: "percent", active: "true" });
 check("percent coupons are normalised", percent?.kind === "percent" && percent?.value === 10 && percent?.active === true);
+
+console.log("\nproduct social proof");
+const generated = toProductInput({ name: "Fresh", slug: "fresh" });
+check("rating is generated above 4", num(generated.rating) > 4, String(generated.rating));
+check("rating stays below 5", num(generated.rating) < 5);
+check(
+  "purchase count is stored in specs",
+  num((generated.specifications as Record<string, unknown>)[PURCHASE_COUNT_KEY]) >= 1000
+);
+const shown = toProduct({ ...generated, id: 1, created_at: "2026-01-01" });
+check("purchase count is exposed on the product", shown.purchaseCount >= 1000);
+check("random helpers stay in range", randomRating() > 4 && randomPurchaseCount() >= 1000);
 
 console.log(`\n${failures === 0 ? "PRODUCT COUPON OK" : `${failures} FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -22,6 +22,9 @@ import {
   MORE_COLORS_KEY,
   PRODUCT_COLOR_KEY,
   PRODUCT_COUPON_KEY,
+  PURCHASE_COUNT_KEY,
+  randomPurchaseCount,
+  randomRating,
   toProduct,
   toProducts,
   type Product,
@@ -151,6 +154,7 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
     PRODUCT_COUPON_KEY.toLowerCase(),
     PRODUCT_COLOR_KEY.toLowerCase(),
     MORE_COLORS_KEY.toLowerCase(),
+    PURCHASE_COUNT_KEY.toLowerCase(),
   ]);
   const specifications: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(json<Record<string, unknown>>(body.specifications, {}))) {
@@ -172,6 +176,10 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
   if (color) specifications[PRODUCT_COLOR_KEY] = { name: color.name, hex: color.hex };
   const moreColors = normaliseMoreColors(body.moreColors);
   if (moreColors.length) specifications[MORE_COLORS_KEY] = moreColors;
+  const purchaseCount = num(body.purchaseCount, 0) || randomPurchaseCount();
+  specifications[PURCHASE_COUNT_KEY] = String(purchaseCount);
+  const rating = num(body.rating);
+  const displayRating = rating > 4 ? rating : randomRating();
 
   return {
     name: String(body.name ?? "").trim(),
@@ -189,7 +197,7 @@ export function toProductInput(body: Record<string, unknown>): ProductInput {
     description_intro: String(body.description_intro ?? ""),
     specifications,
     badge: String(body.badge ?? ""),
-    rating: num(body.rating),
+    rating: displayRating,
     review_count: num(body.review_count),
     stock: num(body.stock, 25),
     is_featured: Boolean(body.is_featured),

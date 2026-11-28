@@ -19,7 +19,7 @@ const SignupPage = () => {
     setError("");
     try {
       await signup(name, email, password);
-      router.push("/");
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
       setError(err.message);
     }

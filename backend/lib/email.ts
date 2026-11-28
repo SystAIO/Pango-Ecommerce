@@ -47,18 +47,19 @@ const rupees = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const siteUrl = () =>
   String(process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
 
-export async function sendVerificationEmail(to: string, name: string, token: string) {
-  const link = `${siteUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+export async function sendVerificationOtpEmail(to: string, name: string, otp: string) {
   return send(
     to,
-    "Verify your Pango Apparels email",
-    `Hi ${name}, verify your email: ${link}`,
-    `<div style="font-family:Arial,sans-serif;max-width:600px">
-      <h2>Verify your email</h2>
-      <p>Hi ${name},</p>
-      <p>Thanks for creating an account. Please confirm your email address.</p>
-      <p><a href="${link}" style="background:#ea580c;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Verify email</a></p>
-      <p>This link expires in 24 hours.</p>
+    "Your Pango Apparels verification code",
+    `Hi ${name}, your email verification code is ${otp}. It expires in 10 minutes.`,
+    `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;background:#fffdf9;border:1px solid #f1e6d2;border-radius:16px;padding:32px">
+      <p style="margin:0;font-size:12px;font-weight:800;letter-spacing:.22em;color:#8a6d3b">PANGO APPARELS</p>
+      <h2 style="margin:18px 0 8px;font-size:24px;color:#171512">Verify your email</h2>
+      <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#4b443a">Hi ${name}, thanks for joining Pango Apparels. Enter the code below on the website to activate your account.</p>
+      <div style="text-align:center;margin:24px 0">
+        <span style="display:inline-block;background:#171512;color:#fff;font-size:30px;font-weight:800;letter-spacing:.35em;padding:14px 24px;border-radius:12px">${otp}</span>
+      </div>
+      <p style="margin:0;font-size:12px;color:#8a8172">This code expires in 10 minutes. If you did not create an account, ignore this email.</p>
     </div>`
   );
 }
