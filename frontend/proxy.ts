@@ -26,7 +26,9 @@ function verifyTokenEdge(token: string): { userId: number; role: string } | null
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const protectedPaths = ["/user-dashboard", "/Admin-Dashboard", "/checkout"];
+  // /checkout is intentionally public: guests can review the bag and referral
+  // code, and are sent to sign in only when they continue to payment.
+  const protectedPaths = ["/user-dashboard", "/Admin-Dashboard"];
   const adminPaths = ["/Admin-Dashboard"];
 
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
@@ -59,6 +61,6 @@ export default function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/user-dashboard/:path*", "/Admin-Dashboard/:path*", "/checkout/:path*"],
+  matcher: ["/user-dashboard/:path*", "/Admin-Dashboard/:path*"],
 };
 
