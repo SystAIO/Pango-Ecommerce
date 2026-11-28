@@ -160,11 +160,18 @@ export default function Navbar() {
           isVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        {/* ─── Announcement strip: black, centred (admin-editable) ─── */}
+        {/* ─── Announcement strip: scrolling marquee (admin-editable) ─── */}
         {announcement !== false ? (
-          <div className="border-b border-white/10 bg-[#111] py-1.5 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-[#f6f1e8] sm:text-[10px]">
-            {announcement ??
-              "Free Shipping Sitewide on Every Order, Don't Miss Out!!"}
+          <div className="overflow-hidden border-b border-white/10 bg-[#111] py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-[#f6f1e8] sm:text-[10px]">
+            {(() => {
+              const text = `${announcement ?? "Free Shipping Sitewide on Every Order, Don't Miss Out!!"}   •   `;
+              return (
+                <div className="animate-marquee flex w-[200%] whitespace-nowrap">
+                  <span className="w-1/2 shrink-0">{text.repeat(4)}</span>
+                  <span className="w-1/2 shrink-0" aria-hidden>{text.repeat(4)}</span>
+                </div>
+              );
+            })()}
           </div>
         ) : null}
 
@@ -235,7 +242,10 @@ export default function Navbar() {
                    padding, so moving the pointer into the panel never leaves
                    the subtree and closes the menu. */
                 <div
-                  className="absolute left-0 top-full z-[100] w-[min(80vw,740px)] pt-2"
+                  className="absolute left-0 top-full z-[100] pt-2"
+                  style={{
+                    width: `min(94vw, ${Math.max(560, menu[activeMenu].columns.length * 240 + 80)}px)`,
+                  }}
                   onMouseEnter={() => setActiveMenu(activeMenu)}
                   onMouseLeave={() => setActiveMenu(null)}
                 >
@@ -245,13 +255,12 @@ export default function Navbar() {
                     className="rounded-xl border border-stone-200 bg-white px-8 py-7 shadow-xl"
                   >
                     <div
-                      className={`grid gap-8 ${
-                        menu[activeMenu].columns.length === 1
-                          ? "grid-cols-1"
-                          : menu[activeMenu].columns.length === 2
-                            ? "grid-cols-2"
-                            : "grid-cols-3 lg:grid-cols-4"
-                      }`}
+                      className="grid gap-6 lg:gap-8"
+                      style={{
+                        // One column per saved navbar column — adding a new
+                        // column in Admin automatically gets its own space.
+                        gridTemplateColumns: `repeat(${menu[activeMenu].columns.length}, minmax(0, 1fr))`,
+                      }}
                     >
                       {menu[activeMenu].columns.map((col) => {
                         const women = isWomenLabel(col.title);
